@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Timetable grid ─────────────────────────────────── */
+.tt-cell {
+  @apply px-2 py-1.5 text-xs font-medium text-center border border-slate-200 transition-all duration-200;
+  min-width: 100px;
+}
+.tt-cell:hover           { @apply bg-slate-100; }
+.tt-cell.theory          { @apply bg-blue-50 text-blue-700 border-blue-200; }
+.tt-cell.lab             { @apply bg-emerald-50 text-emerald-700 border-emerald-200; }
+.tt-cell.break           { @apply bg-slate-100 text-slate-400 italic; }
+.tt-cell.fyp             { @apply bg-violet-50 text-violet-700 border-violet-200; }
+
+/* ── Existing utilities ─────────────────────────────── */
+.glass {
+  @apply bg-white border border-slate-200 rounded-2xl shadow-sm;
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #3b82f6, #6366f1, #06b6d4);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.12),
+              0 0 40px rgba(59, 130, 246, 0.06);
+}
+
+.nav-active {
+  @apply bg-primary-50 text-primary-600 border-r-2 border-primary-500;
+}
+
+.premium-card {
+  @apply bg-white border border-slate-100 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300;
+}
+.premium-card:hover {
+  @apply shadow-[0_20px_40px_rgb(0,0,0,0.06)] -translate-y-1;
+}
+
+.glass-morphism {
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+.btn-accent {
+  @apply px-4 py-2 rounded-xl gradient-accent text-white font-semibold shadow-lg shadow-blue-500/20 active:scale-95 transition-all;
+}
+
+.hover-lift {
+  @apply transition-transform duration-300 hover:-translate-y-0.5;
+}
+
+/* ── NEW: Landing page luxury styles ────────────────── */
+
+/* Mesh gradient hero background */
+.mesh-gradient {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.10) 0%, transparent 50%),
+    radial-gradient(circle at 10% 80%, rgba(212, 168, 67, 0.08) 0%, transparent 40%),
+    linear-gradient(180deg, #0A1628 0%, #0F1D35 100%);
+}
+
+/* Gold shimmer text */
+.text-shimmer {
+  background: linear-gradient(90deg, #D4A843 0%, #F2C94C 25%, #D4A843 50%, #F2C94C 75%, #D4A843 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Glass card — dark version */
+.glass-dark {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+}
+
+.glass-dark:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Floating orb */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Hero stat counter */
+.stat-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+.stat-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Feature card gradient borders */
+.feature-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.feature-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(212, 168, 67, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Login split panel */
+.login-hero-bg {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(212, 168, 67, 0.15) 0%, transparent 50%),
+    linear-gradient(135deg, #0A1628 0%, #0F1D35 60%, #1a2744 100%);
+}
+
+/* Instruction step card */
+.step-card {
+  @apply relative bg-white rounded-2xl border border-slate-100 p-6 transition-all duration-300;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.step-card:hover {
+  @apply -translate-y-1;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}

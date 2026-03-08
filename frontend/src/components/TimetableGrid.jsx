@@ -1,0 +1,363 @@
+import React, { useMemo } from 'react';
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+// Beautiful color palette - REORDERED for maximum contrast between adjacent colors
+// Alternating warm/cool, light/dark to avoid similar colors appearing together
+const COLOR_PALETTE = [
+    { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-600' },           // 1. Vibrant Blue
+    { bg: 'bg-orange-500', text: 'text-white', border: 'border-orange-600' },       // 2. Warm Orange (contrast with blue)
+    { bg: 'bg-teal-500', text: 'text-white', border: 'border-teal-600' },           // 3. Cool Teal
+    { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-600' },           // 4. Bright Pink (contrast with teal)
+    { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-600' },     // 5. Fresh Green
+    { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600' },             // 6. Bold Red (contrast with green)
+    { bg: 'bg-cyan-500', text: 'text-white', border: 'border-cyan-600' },           // 7. Bright Cyan
+    { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-600' },       // 8. Rich Purple (contrast with cyan)
+    { bg: 'bg-lime-500', text: 'text-white', border: 'border-lime-600' },           // 9. Electric Lime
+    { bg: 'bg-indigo-500', text: 'text-white', border: 'border-indigo-600' },       // 10. Deep Indigo (contrast with lime)
+    { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-600' },         // 11. Golden Amber
+    { bg: 'bg-violet-500', text: 'text-white', border: 'border-violet-600' },       // 12. Vivid Violet (contrast with amber)
+    { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-600' },             // 13. Sky Blue
+    { bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-600' },           // 14. Elegant Rose (contrast with sky)
+    { bg: 'bg-fuchsia-500', text: 'text-white', border: 'border-fuchsia-600' },     // 15. Hot Fuchsia
+];
+
+// Global color assignment cache to ensure consistency across all sections
+const globalSubjectColors = {};
+const teacherSectionColors = {}; // Separate cache for teacher view - colors by section
+let colorIndex = 0;
+let teacherColorIndex = 0;
+
+export default function TimetableGrid({ sectionName, slots, timetable, isTeacherView = false }) {
+    // Assign colors to subjects - ensuring no repeats and consistency across sections
+    const getSubjectColor = useMemo(() => {
+        return (subjectCode) => {
+            if (!subjectCode) return { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' };
+
+            // If this subject already has a color assigned globally, use it
+            if (globalSubjectColors[subjectCode]) {
+                return globalSubjectColors[subjectCode];
+            }
+
+            // Assign a new color from the palette
+            const color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
+            globalSubjectColors[subjectCode] = color;
+            colorIndex++;
+
+            return color;
+        };
+    }, []);
+
+    // For teacher view: assign colors by SECTION, not subject
+    const getTeacherSectionColor = useMemo(() => {
+        return (sectionName) => {
+            if (!sectionName) return { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' };
+
+            // If this section already has a color, use it
+            if (teacherSectionColors[sectionName]) {
+                return teacherSectionColors[sectionName];
+            }
+
+            // Assign a new color from the palette
+            const color = COLOR_PALETTE[teacherColorIndex % COLOR_PALETTE.length];
+            teacherSectionColors[sectionName] = color;
+            teacherColorIndex++;
+
+            return color;
+        };
+    }, []);
+    const grid = {};
+    for (let d = 0; d < 5; d++) grid[d] = {};
+    slots.forEach(s => {
+        grid[s.day] = grid[s.day] || {};
+        grid[s.day][s.slot_index] = s;
+    });
+
+    const duration = timetable?.class_duration || 60;
+    const breakSlot = timetable?.break_slot ?? 2;
+    const breakStart = timetable?.break_start_time || "10:30";
+    const breakEnd = timetable?.break_end_time || "11:00";
+    const maxSlotsFriday = timetable?.max_slots_friday || 5;
+    const startTime = timetable?.start_time || "08:30"; // Configurable start time
+
+    const generateSlotTimes = () => {
+        // Parse start time
+        const [startH, startM] = startTime.split(':').map(Number);
+        
+        // All 8 columns get real clock times.
+        // Breaks can be at slot 2 OR slot 3 depending on morning-lab scheduling.
+        // The break LABEL appears inside the cell (from is_break flag in data).
+        // The column header always shows the real clock time for that slot index.
+        const times = [];
+        let h = startH, m = startM;
+        const fmt = (hh, mm) => `${hh}:${String(mm).padStart(2, '0')}`;
+
+        for (let i = 0; i < 8; i++) {
+            if (i === breakSlot) {
+                // Default break column — show the break window time
+                const endH = parseInt(breakEnd.split(':')[0]);
+                const endM = parseInt(breakEnd.split(':')[1]);
+                times.push(`${breakStart}\n${breakEnd}`);
+                h = endH; m = endM;
+            } else {
+                const startStr = fmt(h, m);
+                m += duration;
+                if (m >= 60) { h += Math.floor(m / 60); m = m % 60; }
+                times.push(`${startStr}\n${fmt(h, m)}`);
+            }
+        }
+        return times;
+    };
+
+    const slotTimes = generateSlotTimes();
+
+    const cellClass = (slot) => {
+        if (!slot) return 'bg-white';
+        if (slot.is_break) return 'tt-cell break';
+        if (slot.label === 'FYP-II' || slot.label === 'FYP-I') return 'tt-cell fyp text-indigo-700 bg-indigo-50 border-indigo-200';
+
+        // Use subject-specific colors
+        if (slot.subject_code) {
+            // Teacher view: color by SECTION, not subject
+            const colors = isTeacherView
+                ? getTeacherSectionColor(slot.section_name)
+                : getSubjectColor(slot.subject_code);
+
+            // Make labs transparent ONLY in full timetable view where teacher is viewing other people's labs
+            // In MySchedulePage, we're showing ONLY the teacher's own slots, so no transparency needed
+            const opacity = '';  // Removed opacity - labs should be fully visible in teacher's own schedule
+            return `tt-cell ${colors.bg} ${colors.text} ${colors.border} ${opacity}`;
+        }
+
+        return 'tt-cell';
+    };
+
+    // Compute slot times for a specific day, respecting the actual break slot position.
+    // On morning-lab days the break is at slot 3 (not 2), so slot 2 is a full 60-min lab.
+    const getSlotTimesForDay = (actualBreakSlot) => {
+        const [startH, startM] = startTime.split(':').map(Number);
+        const times = [];
+        const fmt = (hh, mm) => `${hh}:${String(mm).padStart(2, '0')}`;
+        let h = startH, m = startM;
+        for (let i = 0; i < 8; i++) {
+            if (i === actualBreakSlot) {
+                const startStr = fmt(h, m);
+                const [bEndH, bEndM] = breakEnd.split(':').map(Number);
+                const bEndTotal = bEndH * 60 + bEndM;
+                const bStartTotal = h * 60 + m;
+                // Use break duration from settings (breakEnd - breakStart mins)
+                const [bsH, bsM] = breakStart.split(':').map(Number);
+                const breakDuration = (bEndH * 60 + bEndM) - (bsH * 60 + bsM);
+                times.push(`${startStr}\n${fmt(Math.floor((h * 60 + m + breakDuration) / 60), (h * 60 + m + breakDuration) % 60)}`);
+                m += breakDuration;
+                if (m >= 60) { h += Math.floor(m / 60); m %= 60; }
+            } else {
+                const startStr = fmt(h, m);
+                m += duration;
+                if (m >= 60) { h += Math.floor(m / 60); m %= 60; }
+                times.push(`${startStr}\n${fmt(h, m)}`);
+            }
+        }
+        return times;
+    };
+
+    const cellContent = (slot) => {
+        if (!slot) return '';
+        if (slot.is_break) {
+            // If the break is at the default position, use global slotTimes.
+            // If shifted (morning lab day), recompute with the actual break slot.
+            const actualBreakSlot = slot.slot_index;
+            const dayTimes = actualBreakSlot !== breakSlot
+                ? getSlotTimesForDay(actualBreakSlot)
+                : slotTimes;
+            const breakTime = dayTimes[actualBreakSlot];
+            if (breakTime) {
+                const timeLine = breakTime.replace('\n', '-');
+                return `Break\n${timeLine}`;
+            }
+            return 'Break';
+        }
+        if (slot.label) return slot.label;
+        let text = slot.subject_code || '';
+        if (slot.is_lab) text += ' (Pr)';
+
+        // Add section name for teacher view
+        if (isTeacherView && slot.section_name) {
+            text += `\n${slot.section_name}`;
+        }
+
+        return text;
+    };
+
+    const cellTooltip = (slot) => {
+        if (!slot || slot.is_break) return '';
+        const parts = [];
+        if (slot.subject_code) parts.push(slot.subject_code);
+        if (slot.is_lab && slot.lab_engineer_name) parts.push(`Lab Engr: ${slot.lab_engineer_name}`);
+        if (!slot.is_lab && slot.teacher_name) parts.push(`Teacher: ${slot.teacher_name}`);
+        if (slot.room_name) parts.push(`Room: ${slot.room_name}`);
+        return parts.join('\n');
+    };
+
+    return (
+        <div className="glass overflow-hidden shadow-sm border border-slate-200 rounded-2xl">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white/50">
+                <div className="flex items-center gap-3">
+                    <h3 className="text-sm font-bold text-slate-800">{sectionName}</h3>
+                    {timetable?.semester_info && (
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            {timetable.semester_info}
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-sky-400"></div>
+                            <span className="text-[10px] text-slate-400 font-medium">Theory</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                            <span className="text-[10px] text-slate-400 font-medium">Lab</span>
+                        </div>
+                    </div>
+                    <span className="text-xs text-slate-400 font-medium">{slots.length} assigned slots</span>
+                </div>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr>
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50/80 border-b border-slate-100 sticky left-0 z-10 min-w-[100px] text-left">
+                                Day / Time
+                            </th>
+                            {slotTimes.map((t, i) => (
+                                <th key={i} className={`px-2 py-3 text-[10px] border-b border-slate-100 whitespace-pre-line text-center min-w-[100px] ${i === breakSlot ? 'bg-amber-50/30' : 'bg-slate-50/50'}`}>
+                                    <div className="text-slate-400 font-bold mb-1">SLOT {i + 1}</div>
+                                    <div className="text-slate-600 font-medium leading-tight">{t}</div>
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {DAY_NAMES.map((dayName, d) => (
+                            <tr key={d} className="group hover:bg-slate-50/30 transition-colors">
+                                <td className="px-4 py-3 text-xs font-bold text-slate-600 bg-white border-b border-slate-100 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0,02)]">
+                                    {dayName}
+                                    {d === 4 && <span className="block text-[9px] text-slate-400 font-normal mt-0.5">Short Day</span>}
+                                </td>
+                                {Array.from({ length: 8 }, (_, s) => {
+                                    if (d === 4 && s >= maxSlotsFriday) {
+                                        return <td key={s} className="bg-slate-50/20 border-b border-slate-50" />;
+                                    }
+                                    const slot = grid[d]?.[s];
+                                    
+                                    // Check if this is an empty slot
+                                    const isEmptySlot = !slot;
+                                    
+                                    return (
+                                        <td key={s} className={`border-b border-slate-100 p-1 h-16 min-w-[120px] transition-all duration-200 ${isEmptySlot ? 'bg-white' : ''}`}
+                                            title={cellTooltip(slot)}>
+                                            <div className={`h-full w-full rounded-lg flex flex-col justify-center items-center text-center p-1.5 relative overflow-hidden group/slot ${
+                                                isEmptySlot && isTeacherView 
+                                                    ? 'border-2 border-slate-200 bg-slate-50/20' 
+                                                    : isEmptySlot 
+                                                        ? '' 
+                                                        : cellClass(slot)
+                                            }`}>
+                                                {isEmptySlot ? (
+                                                    /* Empty slot - show as solid box in teacher view (same size as filled), show "Teacher Consultation" in admin view */
+                                                    isTeacherView ? null : (
+                                                        <div className="text-[9px] text-slate-400 italic leading-tight font-medium">
+                                                            Teacher<br/>Consultation
+                                                        </div>
+                                                    )
+                                                ) : slot && !slot.is_break && !slot.label ? (
+                                                    <>
+                                                        {/* Teacher View: Show batch/section prominently */}
+                                                        {isTeacherView ? (
+                                                            <>
+                                                                {/* Batch/Section at top */}
+                                                                {slot.section_name && (
+                                                                    <div className="text-[10px] font-black opacity-90 leading-tight mb-1">
+                                                                        {slot.section_name}
+                                                                    </div>
+                                                                )}
+                                                                {/* Subject code */}
+                                                                <div className="font-bold text-[13px] leading-tight mb-0.5">
+                                                                    {slot.subject_code}{slot.is_lab ? ' (Pr)' : ''}
+                                                                </div>
+                                                                {/* Room at bottom */}
+                                                                {slot.room_name && (
+                                                                    <div className="text-[9px] opacity-70 leading-tight font-medium">
+                                                                        📍 {slot.room_name}
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            /* Admin View: Original layout */
+                                                            <>
+                                                                {/* Lab: 3 rows - Lab room, Subject (Pr), Teacher name */}
+                                                                {slot.is_lab ? (
+                                                                    <>
+                                                                        {slot.room_name && (
+                                                                            <div className="text-[8px] font-semibold opacity-80 leading-tight mb-0.5">
+                                                                                {slot.room_name}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="font-bold text-[12px] leading-tight mb-0.5">
+                                                                            {slot.subject_code} (Pr)
+                                                                        </div>
+                                                                        {slot.lab_engineer_name && (
+                                                                            <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                                {slot.lab_engineer_name}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    /* Theory: 2 rows - Subject, Teacher name */
+                                                                    <>
+                                                                        <div className="font-bold text-[12px] leading-tight mb-1">
+                                                                            {slot.subject_code}
+                                                                        </div>
+                                                                        {slot.is_lab ? (
+                                                                            slot.lab_engineer_name && (
+                                                                                <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                                    {slot.lab_engineer_name}
+                                                                                </div>
+                                                                            )
+                                                                        ) : (
+                                                                            slot.teacher_name && (
+                                                                                <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                                    {slot.teacher_name}
+                                                                                </div>
+                                                                            )
+                                                                        )}
+                                                                        {slot.room_name && (
+                                                                            <div className="absolute top-1 right-1 text-[7px] font-bold opacity-30 group-hover/slot:opacity-60">
+                                                                                {slot.room_name}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    /* Break or FYP labels */
+                                                    <div className="font-bold text-[11px] leading-tight whitespace-pre-line">
+                                                        {cellContent(slot)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}

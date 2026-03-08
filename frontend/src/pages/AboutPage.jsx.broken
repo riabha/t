@@ -1,0 +1,318 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import {
+    HiOutlineAcademicCap, HiOutlineCalendar, HiOutlineFilter,
+    HiOutlineEye, HiOutlinePrinter, HiOutlineLogin,
+    HiOutlineLightningBolt, HiOutlineShieldCheck, HiOutlineOfficeBuilding,
+    HiOutlineUserGroup, HiOutlineClock, HiOutlineBookOpen,
+    HiOutlineQuestionMarkCircle, HiOutlineArrowLeft, HiOutlineChevronDown
+} from 'react-icons/hi';
+
+function StepCard({ number, icon: Icon, title, description, color }) {
+    return (
+        <div className="step-card group">
+            <div className="flex items-start gap-4">
+                <div className="relative flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${color}`}>
+                        <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xs font-bold flex items-center justify-center shadow-md">
+                        {number}
+                    </span>
+                </div>
+                <div>
+                    <h4 className="font-display font-bold text-slate-800 text-lg mb-1">{title}</h4>
+                    <p className="text-sm text-slate-500 leading-relaxed">{description}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function FAQItem({ question, answer }) {
+    const [open, setOpen] = React.useState(false);
+    return (
+        <div className="border border-slate-100 rounded-2xl overflow-hidden transition-all bg-white shadow-sm">
+            <button
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-blue-50/50 transition-colors"
+            >
+                <span className="font-semibold text-slate-800 text-sm pr-4">{question}</span>
+                <HiOutlineChevronDown className={`w-5 h-5 text-blue-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="px-6 pb-4 bg-blue-50/30">
+                    <p className="text-sm text-slate-500 leading-relaxed">{answer}</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function AboutPage() {
+    const [stats, setStats] = useState({ faculty: '...', courses: '...', departments: '...', timetables: '...' });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const [statsRes, ttRes] = await Promise.all([
+                    axios.get('/api/public/stats'),
+                    axios.get('/api/public/timetables')
+                ]);
+                setStats({
+                    faculty: statsRes.data.faculty,
+                    courses: statsRes.data.courses,
+                    departments: statsRes.data.departments,
+                    timetables: ttRes.data.length
+                });
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+                setStats({ faculty: '24+', courses: '170+', departments: '9', timetables: 'Many' }); // Fallback
+            }
+        };
+        fetchStats();
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-white">
+
+            {/* ═══════════ HEADER ═══════════ */}
+            <header className="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-18 py-3">
+                        <Link to="/" className="flex items-center gap-3 group">
+                            <img src="/logo.png" alt="QUEST Logo" className="w-10 h-10 object-contain" />
+                            <div>
+                                <p className="font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 text-base">QUEST</p>
+                                <p className="text-[9px] text-amber-600 uppercase tracking-[0.15em] font-bold">Timetable Portal</p>
+                            </div>
+                        </Link>
+                        <div className="flex items-center gap-3">
+                            <Link to="/" className="text-xs text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-1 font-medium">
+                                <HiOutlineArrowLeft className="w-4 h-4" /> Home
+                            </Link>
+                            <Link to="/login" className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 rounded-xl transition-all shadow-md">
+                                Admin Login
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* ═══════════ HERO ═══════════ */}
+            <section className="relative overflow-hidden py-20 lg:py-28 bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50">
+                <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-violet-200/40 rounded-full blur-3xl -translate-x-1/3 -translate-y-1/3" />
+                <div className="absolute bottom-0 right-0 w-[350px] h-[350px] bg-amber-200/30 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
+
+                <div className="relative z-10 max-w-3xl mx-auto px-4 text-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-blue-200 shadow-sm mb-6">
+                        <HiOutlineBookOpen className="w-4 h-4 text-blue-500" />
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Complete Guide</span>
+                    </div>
+                    <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-tight mb-4">
+                        <span className="text-slate-900">About & </span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600">Instructions</span>
+                    </h1>
+                    <p className="text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
+                        Everything you need to know about the QUEST Timetable Portal — from viewing schedules to understanding the technology.
+                    </p>
+                </div>
+            </section>
+
+            {/* ═══════════ UNIVERSITY OVERVIEW ═══════════ */}
+            <section className="py-20">
+                <div className="max-w-5xl mx-auto px-4">
+                    <div className="grid md:grid-cols-2 gap-12 items-center">
+                        <div>
+                            <span className="inline-block px-4 py-1.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold uppercase tracking-wider mb-4">Quaid-e-Awam University</span>
+                            <h2 className="font-display text-3xl font-extrabold text-slate-900 mb-4">Engineering, Science & Technology</h2>
+                            <p className="text-slate-500 leading-relaxed mb-4">
+                                Quaid-e-Awam University of Engineering, Science & Technology (QUEST), Nawabshah,
+                                is one of Pakistan's premier public engineering universities. Established with a mission to
+                                produce world-class engineers and technologists, QUEST has been a cornerstone of technical
+                                education in Sindh.
+                            </p>
+                            <p className="text-slate-500 leading-relaxed">
+                                The <strong className="text-slate-700">Department of Civil Engineering</strong> is one of the founding departments,
+                                offering undergraduate and graduate programs in Civil Engineering (CE), Civil Engineering Technology (CET),
+                                and Building & Architectural Engineering (BAE).
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {[
+                                { icon: HiOutlineOfficeBuilding, val: stats.departments, lbl: 'Departments', color: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50', text: 'text-blue-700' },
+                                { icon: HiOutlineUserGroup, val: stats.faculty, lbl: 'Faculty', color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+                                { icon: HiOutlineBookOpen, val: stats.courses, lbl: 'Courses', color: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-700' },
+                                { icon: HiOutlineCalendar, val: stats.timetables, lbl: 'Timetables', color: 'from-violet-500 to-purple-600', bg: 'bg-violet-50', text: 'text-violet-700' },
+                            ].map(({ icon: Icon, val, lbl, color, bg, text }) => (
+                                <div key={lbl} className={`p-5 rounded-2xl ${bg} border border-slate-100 text-center transition-all hover:-translate-y-1 hover:shadow-lg`}>
+                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mx-auto mb-3 shadow-md`}>
+                                        <Icon className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className={`text-2xl font-display font-extrabold ${text}`}>{val}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-semibold">{lbl}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ═══════════ WHY THIS PORTAL ═══════════ */}
+            <section className="py-20 bg-gradient-to-b from-slate-50 to-white">
+                <div className="max-w-5xl mx-auto px-4">
+                    <div className="text-center mb-14">
+                        <span className="inline-block px-4 py-1.5 rounded-full bg-violet-50 text-violet-600 text-xs font-bold uppercase tracking-wider mb-4">The Platform</span>
+                        <h2 className="font-display text-3xl font-extrabold text-slate-900 mb-4">Why Was This Portal Built?</h2>
+                        <p className="text-slate-500 max-w-2xl mx-auto leading-relaxed">
+                            Timetable scheduling is one of the most complex administrative challenges.
+                            Manual scheduling takes days and often results in conflicts and unfair workloads.
+                            This portal solves that — permanently.
+                        </p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        {[
+                            {
+                                icon: HiOutlineLightningBolt, title: 'Automated Generation', desc: 'Uses Google OR-Tools constraint programming to generate optimal timetables in seconds.',
+                                gradient: 'from-blue-500 to-indigo-600 shadow-blue-500/30', bg: 'bg-blue-50/50 border-blue-100 hover:bg-blue-50'
+                            },
+                            {
+                                icon: HiOutlineShieldCheck, title: 'Zero Conflicts', desc: 'Guarantees no teacher double-booking, respects restrictions, and optimizes room allocation.',
+                                gradient: 'from-emerald-500 to-teal-600 shadow-emerald-500/30', bg: 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50'
+                            },
+                            {
+                                icon: HiOutlineOfficeBuilding, title: 'Multi-Department', desc: 'Supports CE, CET, and BAE with cross-department sharing and engagement tracking.',
+                                gradient: 'from-amber-500 to-orange-600 shadow-amber-500/30', bg: 'bg-amber-50/50 border-amber-100 hover:bg-amber-50'
+                            },
+                        ].map(({ icon: Icon, title, desc, gradient, bg }) => (
+                            <div key={title} className={`rounded-3xl p-7 border transition-all hover:-translate-y-1 hover:shadow-xl ${bg}`}>
+                                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-5 shadow-lg`}>
+                                    <Icon className="w-6 h-6 text-white" />
+                                </div>
+                                <h3 className="font-display font-bold text-slate-800 text-lg mb-2">{title}</h3>
+                                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ═══════════ HOW TO USE ═══════════ */}
+            <section className="py-20">
+                <div className="max-w-4xl mx-auto px-4">
+                    <div className="text-center mb-14">
+                        <span className="inline-block px-4 py-1.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold uppercase tracking-wider mb-4">Step-by-Step</span>
+                        <h2 className="font-display text-3xl font-extrabold text-slate-900 mb-4">How to Use This Portal</h2>
+                        <p className="text-slate-500 max-w-xl mx-auto">Follow these simple steps to view timetables, filter by department, and navigate the system.</p>
+                    </div>
+                    <div className="space-y-5">
+                        <StepCard number={1} icon={HiOutlineEye} title="Visit the Homepage"
+                            description="Open the portal homepage to see all published timetables. The latest version is displayed by default."
+                            color="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/30" />
+                        <StepCard number={2} icon={HiOutlineFilter} title="Filter by Department & Batch"
+                            description="Use the filter panel to narrow down schedules. Select a department (CE, CET, or BAE) and optionally a specific batch year."
+                            color="bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30" />
+                        <StepCard number={3} icon={HiOutlineCalendar} title="Browse the Timetable Grid"
+                            description="Each section's timetable is a weekly grid. Theory classes are in blue, labs in green, and FYP sessions in purple."
+                            color="bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30" />
+                        <StepCard number={4} icon={HiOutlinePrinter} title="Print or Screenshot"
+                            description="Use Ctrl+P to save or print. The layout is optimized for A4 landscape printing."
+                            color="bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/30" />
+                        <StepCard number={5} icon={HiOutlineLogin} title="Admin Access (For Staff)"
+                            description="Faculty and admin can log in to manage assignments, generate timetables, set restrictions, and view workloads."
+                            color="bg-gradient-to-br from-rose-500 to-pink-600 shadow-rose-500/30" />
+                    </div>
+
+                    {/* Admin capabilities */}
+                    <div className="mt-14 p-8 bg-gradient-to-br from-blue-50 via-violet-50 to-purple-50 rounded-3xl border border-blue-100">
+                        <h3 className="font-display font-bold text-xl text-slate-800 mb-4">📋 For Administrators</h3>
+                        <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                            {[
+                                'Manage faculty, subjects, rooms, and sections',
+                                'Set teacher restrictions (unavailable time slots)',
+                                'Create assignment sessions and assign subjects',
+                                'Auto-generate conflict-free timetables with one click',
+                                'Archive and version-control generated timetables',
+                                'View workload summaries and faculty schedules',
+                                'Support cross-department faculty engagement',
+                                'Role-based access: Super Admin, Program Admin, Clerk, Teacher',
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                                    <span>{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ═══════════ DEVELOPER ═══════════ */}
+            <section className="py-20 bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 relative overflow-hidden">
+                <div className="absolute top-10 left-10 w-40 h-40 bg-violet-200/40 rounded-full blur-3xl" />
+                <div className="absolute bottom-10 right-10 w-52 h-52 bg-amber-200/30 rounded-full blur-3xl" />
+                <div className="relative z-10 max-w-3xl mx-auto px-4 text-center">
+                    <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-10 shadow-xl border border-white/50">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/25 ring-4 ring-amber-100">
+                            <span className="text-4xl font-display font-extrabold text-white">RB</span>
+                        </div>
+                        <p className="text-xs text-amber-600 uppercase tracking-[0.2em] font-bold mb-2">Developed By</p>
+                        <h3 className="font-display text-3xl font-extrabold text-slate-900 mb-3">Prof. Dr. Riaz Bhanbhro</h3>
+                        <p className="text-slate-500 text-sm leading-relaxed max-w-md mx-auto mb-6">
+                            Professor at the Department of Civil Engineering, Quaid-e-Awam University of Engineering,
+                            Science & Technology, Nawabshah, Sindh, Pakistan.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                            {['Python', 'FastAPI', 'React', 'OR-Tools', 'SQLAlchemy'].map(tech => (
+                                <span key={tech} className="px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100 text-xs font-semibold text-blue-600">
+                                    {tech}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ═══════════ FAQ ═══════════ */}
+            <section className="py-20 bg-slate-50">
+                <div className="max-w-3xl mx-auto px-4">
+                    <div className="text-center mb-14">
+                        <span className="inline-block px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-wider mb-4">FAQ</span>
+                        <h2 className="font-display text-3xl font-extrabold text-slate-900">Frequently Asked Questions</h2>
+                    </div>
+                    <div className="space-y-3">
+                        <FAQItem question="Do I need to log in to view timetables?"
+                            answer="No! All published timetables are publicly accessible from the homepage. Just visit the portal and use the filters to find your schedule." />
+                        <FAQItem question="How often are timetables updated?"
+                            answer="Timetables are generated by administrators whenever there are changes. The latest version is always displayed first, and previous versions are archived." />
+                        <FAQItem question="Can I download or print the timetable?"
+                            answer="Yes! Use your browser print function (Ctrl+P) to print or save as PDF. The layout is optimized for A4 landscape printing." />
+                        <FAQItem question="Who can access the admin dashboard?"
+                            answer="Only authorized users — Super Admins, Program Admins, Clerks, and Teachers. Each role has specific permissions." />
+                        <FAQItem question="What technology powers this portal?"
+                            answer="Python (FastAPI + SQLAlchemy) backend, React + Tailwind CSS frontend, and Google OR-Tools constraint programming solver for scheduling." />
+                        <FAQItem question="How does conflict-free scheduling work?"
+                            answer="The system models timetabling as a constraint satisfaction problem. It enforces no-overlap rules and optimizes for fair workload distribution using advanced algorithms." />
+                    </div>
+                </div>
+            </section>
+
+            {/* ═══════════ FOOTER ═══════════ */}
+            <footer className="bg-white border-t border-slate-100 py-10">
+                <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.png" alt="QUEST Logo" className="w-8 h-8 object-contain" />
+                        <p className="text-sm text-slate-400">© {new Date().getFullYear()} QUEST Timetable Portal</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-slate-400">
+                        <Link to="/" className="hover:text-blue-600 transition-colors">Home</Link>
+                        <Link to="/login" className="hover:text-blue-600 transition-colors">Admin Login</Link>
+                        <span>Developed with ❤️ by Prof. Dr. Riaz Bhanbhro</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    );
+}
+
