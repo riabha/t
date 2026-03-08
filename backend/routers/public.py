@@ -89,8 +89,8 @@ def public_stats(db: Session = Depends(get_db)):
 
 @router.get("/teachers")
 def public_teachers_list(db: Session = Depends(get_db)):
-    """List all teachers — no auth."""
-    teachers = db.query(Teacher).filter(Teacher.is_lab_engineer == False).all()
+    """List all teachers including lab engineers — no auth."""
+    teachers = db.query(Teacher).order_by(Teacher.is_lab_engineer, Teacher.seniority).all()
     return [
         {
             "id": t.id,
@@ -98,7 +98,8 @@ def public_teachers_list(db: Session = Depends(get_db)):
             "designation": t.designation,
             "department_id": t.department_id,
             "department_name": t.department.name if t.department else None,
-            "seniority": t.seniority
+            "seniority": t.seniority,
+            "is_lab_engineer": t.is_lab_engineer
         }
         for t in teachers
     ]
@@ -133,12 +134,20 @@ def public_teacher_schedule(tt_id: int, teacher_id: int, db: Session = Depends(g
     if not teacher:
         return {"error": "Teacher not found"}
     
-    # Get all slots for this teacher (only where they are the main teacher, NOT lab engineer)
-    # Lab engineers are handled separately and should not appear in regular teacher schedules
-    slots = db.query(TimetableSlot).filter(
-        TimetableSlot.timetable_id == tt_id,
-        TimetableSlot.teacher_id == teacher_id
-    ).all()
+    # If teacher is a lab engineer, show only lab slots where they are lab_engineer_id
+    # If teacher is regular faculty, show only theory slots where they are teacher_id
+    if teacher.is_lab_engineer:
+        slots = db.query(TimetableSlot).filter(
+            TimetableSlot.timetable_id == tt_id,
+            TimetableSlot.lab_engineer_id == teacher_id,
+            TimetableSlot.is_lab == True
+        ).all()
+    else:
+        slots = db.query(TimetableSlot).filter(
+            TimetableSlot.timetable_id == tt_id,
+            TimetableSlot.teacher_id == teacher_id,
+            TimetableSlot.is_lab == False
+        ).all()
     
     # Get section names
     section_ids = list(set([s.section_id for s in slots if s.section_id]))
@@ -150,6 +159,7 @@ def public_teacher_schedule(tt_id: int, teacher_id: int, db: Session = Depends(g
         "timetable_name": tt.name,
         "teacher_id": teacher_id,
         "teacher_name": teacher.name,
+        "is_lab_engineer": teacher.is_lab_engineer,
         "slots": [_slot_dict(s, section_map.get(s.section_id)) for s in slots],
         "break_slot": tt.break_slot,
         "start_time": tt.start_time,

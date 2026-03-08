@@ -41,15 +41,30 @@ export default function FacultyDirectoryPage() {
         return matchesSearch && matchesDept;
     });
 
-    // Group teachers by department
+    // Separate regular teachers and lab engineers
+    const regularTeachers = filteredTeachers.filter(t => !t.is_lab_engineer);
+    const labEngineers = filteredTeachers.filter(t => t.is_lab_engineer);
+
+    // Group regular teachers by department
     const teachersByDept = {};
-    filteredTeachers.forEach(teacher => {
+    regularTeachers.forEach(teacher => {
         const dept = departments.find(d => d.id === teacher.department_id);
         const deptName = dept?.name || 'Other';
         if (!teachersByDept[deptName]) {
             teachersByDept[deptName] = [];
         }
         teachersByDept[deptName].push(teacher);
+    });
+
+    // Group lab engineers by department
+    const labEngineersByDept = {};
+    labEngineers.forEach(teacher => {
+        const dept = departments.find(d => d.id === teacher.department_id);
+        const deptName = dept?.name || 'Other';
+        if (!labEngineersByDept[deptName]) {
+            labEngineersByDept[deptName] = [];
+        }
+        labEngineersByDept[deptName].push(teacher);
     });
 
     return (
@@ -130,8 +145,16 @@ export default function FacultyDirectoryPage() {
                         <p className="text-slate-500 max-w-xs mx-auto mt-1.5 text-sm">Try adjusting your search or filter.</p>
                     </div>
                 ) : (
-                    <div className="space-y-8">
-                        {Object.entries(teachersByDept).map(([deptName, deptTeachers]) => {
+                    <div className="space-y-12">
+                        {/* Regular Faculty Section */}
+                        {regularTeachers.length > 0 && (
+                            <div className="space-y-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+                                    <h2 className="text-2xl font-display font-extrabold text-slate-800 px-4">Faculty Members</h2>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+                                </div>
+                                {Object.entries(teachersByDept).map(([deptName, deptTeachers]) => {
                             const dept = departments.find(d => d.name === deptName);
                             const colors = [
                                 { bar: 'from-blue-500 to-blue-600', badge: 'bg-blue-100 text-blue-700', card: 'hover:border-blue-300' },
@@ -191,6 +214,78 @@ export default function FacultyDirectoryPage() {
                                 </div>
                             );
                         })}
+                            </div>
+                        )}
+
+                        {/* Lab Engineers Section */}
+                        {labEngineers.length > 0 && (
+                            <div className="space-y-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
+                                    <h2 className="text-2xl font-display font-extrabold text-amber-700 px-4">Lab Engineers</h2>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
+                                </div>
+                                {Object.entries(labEngineersByDept).map(([deptName, deptTeachers]) => {
+                                    const dept = departments.find(d => d.name === deptName);
+                                    const colors = {
+                                        bar: 'from-amber-500 to-amber-600',
+                                        badge: 'bg-amber-100 text-amber-700',
+                                        card: 'hover:border-amber-300'
+                                    };
+
+                                    return (
+                                        <div key={`lab-${deptName}`}>
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className={`w-1.5 h-10 rounded-full bg-gradient-to-b ${colors.bar}`} />
+                                                <div>
+                                                    <h3 className="text-lg font-display font-bold text-slate-800">{deptName}</h3>
+                                                    <span className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${colors.badge}`}>
+                                                        {deptTeachers.length} Lab Engineer{deptTeachers.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {deptTeachers.map(teacher => (
+                                                    <div
+                                                        key={teacher.id}
+                                                        className={`bg-white rounded-xl border-2 border-slate-200 ${colors.card} p-5 shadow-sm transition-all duration-200 hover:shadow-md`}
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colors.bar} flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}>
+                                                                {teacher.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="font-bold text-slate-800 text-sm truncate">{teacher.name}</h4>
+                                                                {teacher.designation && (
+                                                                    <p className="text-xs text-slate-600 mt-1 font-medium">{teacher.designation}</p>
+                                                                )}
+                                                                {teacher.department_name && (
+                                                                    <p className="text-xs text-slate-500 mt-0.5">{teacher.department_name}</p>
+                                                                )}
+                                                                <span className="inline-block mt-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">
+                                                                    LAB ENGINEER
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-4 pt-4 border-t border-slate-100">
+                                                            <Link
+                                                                to={`/faculty/${teacher.id}`}
+                                                                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+                                                            >
+                                                                <HiOutlineCalendar className="w-4 h-4" />
+                                                                View Lab Schedule
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -199,8 +294,14 @@ export default function FacultyDirectoryPage() {
                     <div className="mt-8 flex items-center justify-center gap-6 text-sm text-slate-500">
                         <span className="flex items-center gap-2">
                             <HiOutlineUserGroup className="w-4 h-4" />
-                            {filteredTeachers.length} Faculty Members
+                            {regularTeachers.length} Faculty Members
                         </span>
+                        {labEngineers.length > 0 && (
+                            <span className="flex items-center gap-2 text-amber-600">
+                                <HiOutlineAcademicCap className="w-4 h-4" />
+                                {labEngineers.length} Lab Engineers
+                            </span>
+                        )}
                         <span className="flex items-center gap-2">
                             <HiOutlineOfficeBuilding className="w-4 h-4" />
                             {Object.keys(teachersByDept).length} Departments

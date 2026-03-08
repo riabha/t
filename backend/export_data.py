@@ -6,8 +6,9 @@ import json
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import (
-    User, Department, Teacher, Subject, Room, Section, 
-    Assignment, Restriction, Timetable, TimetableSlot, UniversitySession
+    User, Department, Teacher, Subject, Room, Section, Batch,
+    Assignment, TeacherRestriction, Timetable, TimetableSlot, 
+    ScheduleConfig, GlobalConfig, AssignmentSession
 )
 
 def export_data():
@@ -17,15 +18,18 @@ def export_data():
         data = {
             'users': [],
             'departments': [],
+            'batches': [],
             'teachers': [],
             'subjects': [],
             'rooms': [],
             'sections': [],
             'assignments': [],
-            'restrictions': [],
+            'teacher_restrictions': [],
             'timetables': [],
             'timetable_slots': [],
-            'university_sessions': []
+            'schedule_configs': [],
+            'global_configs': [],
+            'assignment_sessions': []
         }
         
         # Export Users
@@ -34,11 +38,12 @@ def export_data():
                 'id': user.id,
                 'username': user.username,
                 'full_name': user.full_name,
-                'email': user.email,
-                'hashed_password': user.hashed_password,
+                'password_hash': user.password_hash,
                 'role': user.role,
                 'department_id': user.department_id,
-                'is_active': user.is_active
+                'teacher_id': user.teacher_id,
+                'can_manage_restrictions': user.can_manage_restrictions,
+                'can_delete_timetable': user.can_delete_timetable
             })
         
         # Export Departments
@@ -47,6 +52,18 @@ def export_data():
                 'id': dept.id,
                 'name': dept.name,
                 'code': dept.code
+            })
+        
+        # Export Batches
+        for batch in db.query(Batch).all():
+            data['batches'].append({
+                'id': batch.id,
+                'year': batch.year,
+                'department_id': batch.department_id,
+                'semester': batch.semester,
+                'morning_lab_mode': batch.morning_lab_mode,
+                'morning_lab_count': batch.morning_lab_count,
+                'morning_lab_days': batch.morning_lab_days
             })
         
         # Export Teachers
@@ -98,12 +115,13 @@ def export_data():
                 'teacher_id': assignment.teacher_id,
                 'subject_id': assignment.subject_id,
                 'section_id': assignment.section_id,
-                'lab_engineer_id': assignment.lab_engineer_id
+                'lab_engineer_id': assignment.lab_engineer_id,
+                'session_id': assignment.session_id
             })
         
-        # Export Restrictions
-        for restriction in db.query(Restriction).all():
-            data['restrictions'].append({
+        # Export Teacher Restrictions
+        for restriction in db.query(TeacherRestriction).all():
+            data['teacher_restrictions'].append({
                 'id': restriction.id,
                 'teacher_id': restriction.teacher_id,
                 'day': restriction.day,
@@ -111,16 +129,32 @@ def export_data():
                 'is_strict': restriction.is_strict
             })
         
-        # Export University Sessions
-        for session in db.query(UniversitySession).all():
-            data['university_sessions'].append({
+        # Export Schedule Configs
+        for config in db.query(ScheduleConfig).all():
+            data['schedule_configs'].append({
+                'id': config.id,
+                'batch_id': config.batch_id,
+                'start_time': config.start_time,
+                'slot_duration': config.slot_duration,
+                'total_slots': config.total_slots,
+                'break_slots': config.break_slots
+            })
+        
+        # Export Global Configs
+        for gconfig in db.query(GlobalConfig).all():
+            data['global_configs'].append({
+                'id': gconfig.id,
+                'key': gconfig.key,
+                'value': gconfig.value
+            })
+        
+        # Export Assignment Sessions
+        for session in db.query(AssignmentSession).all():
+            data['assignment_sessions'].append({
                 'id': session.id,
                 'name': session.name,
-                'start_time': session.start_time,
-                'slot_duration': session.slot_duration,
-                'total_slots': session.total_slots,
-                'break_slots': session.break_slots,
-                'is_active': session.is_active
+                'is_active': session.is_active,
+                'created_at': session.created_at.isoformat() if session.created_at else None
             })
         
         # Export Timetables
@@ -133,8 +167,7 @@ def export_data():
                 'status': tt.status,
                 'created_at': tt.created_at.isoformat() if tt.created_at else None,
                 'updated_at': tt.updated_at.isoformat() if tt.updated_at else None,
-                'session_id': tt.session_id,
-                'allow_morning_labs': tt.allow_morning_labs
+                'config_id': tt.config_id
             })
         
         # Export Timetable Slots
@@ -161,13 +194,16 @@ def export_data():
         print(f"📊 Exported:")
         print(f"   - {len(data['users'])} users")
         print(f"   - {len(data['departments'])} departments")
+        print(f"   - {len(data['batches'])} batches")
         print(f"   - {len(data['teachers'])} teachers")
         print(f"   - {len(data['subjects'])} subjects")
         print(f"   - {len(data['rooms'])} rooms")
         print(f"   - {len(data['sections'])} sections")
         print(f"   - {len(data['assignments'])} assignments")
-        print(f"   - {len(data['restrictions'])} restrictions")
-        print(f"   - {len(data['university_sessions'])} university sessions")
+        print(f"   - {len(data['teacher_restrictions'])} teacher restrictions")
+        print(f"   - {len(data['schedule_configs'])} schedule configs")
+        print(f"   - {len(data['global_configs'])} global configs")
+        print(f"   - {len(data['assignment_sessions'])} assignment sessions")
         print(f"   - {len(data['timetables'])} timetables")
         print(f"   - {len(data['timetable_slots'])} timetable slots")
         print(f"\n📁 File saved as: data_export.json")

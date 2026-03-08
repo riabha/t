@@ -7,8 +7,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import (
-    User, Department, Teacher, Subject, Room, Section,
-    Assignment, Restriction, Timetable, TimetableSlot, UniversitySession
+    User, Department, Teacher, Subject, Room, Section, Batch,
+    Assignment, TeacherRestriction, Timetable, TimetableSlot,
+    ScheduleConfig, GlobalConfig, AssignmentSession
 )
 
 def import_data():
@@ -29,13 +30,39 @@ def import_data():
         db.commit()
         print(f"✅ Imported {len(data['departments'])} departments")
         
-        # Import University Sessions
-        print("Importing university sessions...")
-        for item in data['university_sessions']:
-            session = UniversitySession(**item)
+        # Import Batches
+        print("Importing batches...")
+        for item in data['batches']:
+            batch = Batch(**item)
+            db.add(batch)
+        db.commit()
+        print(f"✅ Imported {len(data['batches'])} batches")
+        
+        # Import Schedule Configs
+        print("Importing schedule configs...")
+        for item in data['schedule_configs']:
+            config = ScheduleConfig(**item)
+            db.add(config)
+        db.commit()
+        print(f"✅ Imported {len(data['schedule_configs'])} schedule configs")
+        
+        # Import Global Configs
+        print("Importing global configs...")
+        for item in data['global_configs']:
+            gconfig = GlobalConfig(**item)
+            db.add(gconfig)
+        db.commit()
+        print(f"✅ Imported {len(data['global_configs'])} global configs")
+        
+        # Import Assignment Sessions
+        print("Importing assignment sessions...")
+        for item in data['assignment_sessions']:
+            if item.get('created_at'):
+                item['created_at'] = datetime.fromisoformat(item['created_at'])
+            session = AssignmentSession(**item)
             db.add(session)
         db.commit()
-        print(f"✅ Imported {len(data['university_sessions'])} university sessions")
+        print(f"✅ Imported {len(data['assignment_sessions'])} assignment sessions")
         
         # Import Users
         print("Importing users...")
@@ -86,12 +113,12 @@ def import_data():
         print(f"✅ Imported {len(data['assignments'])} assignments")
         
         # Import Restrictions
-        print("Importing restrictions...")
-        for item in data['restrictions']:
-            restriction = Restriction(**item)
+        print("Importing teacher restrictions...")
+        for item in data['teacher_restrictions']:
+            restriction = TeacherRestriction(**item)
             db.add(restriction)
         db.commit()
-        print(f"✅ Imported {len(data['restrictions'])} restrictions")
+        print(f"✅ Imported {len(data['teacher_restrictions'])} teacher restrictions")
         
         # Import Timetables
         print("Importing timetables...")
