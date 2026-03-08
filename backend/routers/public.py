@@ -133,10 +133,11 @@ def public_teacher_schedule(tt_id: int, teacher_id: int, db: Session = Depends(g
     if not teacher:
         return {"error": "Teacher not found"}
     
-    # Get all slots for this teacher (both as teacher and lab engineer)
+    # Get all slots for this teacher (only where they are the main teacher, NOT lab engineer)
+    # Lab engineers are handled separately and should not appear in regular teacher schedules
     slots = db.query(TimetableSlot).filter(
         TimetableSlot.timetable_id == tt_id,
-        ((TimetableSlot.teacher_id == teacher_id) | (TimetableSlot.lab_engineer_id == teacher_id))
+        TimetableSlot.teacher_id == teacher_id
     ).all()
     
     # Get section names
