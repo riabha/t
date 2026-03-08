@@ -1,0 +1,81 @@
+# Documentation files (session notes)
+*.md
+!README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.backup
+
+# Node modules
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.backup
+*.old
+*.bak
+*.tmp
+*_backup_*
+*.broken
+*.corrupted
+
+# Test files
+backend/test_*.py
+backend/check_*.py
+backend/verify_*.py
+backend/debug_*.py
+backend/diagnose_*.py
+backend/analyze_*.py
+backend/comprehensive_*.py
+backend/create_vc_*.py
+backend/fix_*.py
+backend/update_*.py
+backend/clean_*.py
+
+# PowerShell scripts
+*.ps1
+
+# Chat logs
+chat.txt
+
+# Docker
+.dockerignore
