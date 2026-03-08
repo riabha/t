@@ -3,14 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { HiOutlineAcademicCap, HiOutlineLightningBolt, HiOutlineShieldCheck, HiOutlineCalendar } from 'react-icons/hi';
 
-const DEMO_CREDENTIALS = [
-    { u: 'admin', p: 'admin123', label: 'Super Admin', badge: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
-    { u: 'admin_ce', p: 'admin123', label: 'CE Admin', badge: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' },
-    { u: 'admin_cet', p: 'admin123', label: 'CET Admin', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' },
-    { u: 'admin_bae', p: 'admin123', label: 'BAE Admin', badge: 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' },
-    { u: 'riaz', p: 'teacher123', label: 'Teacher', badge: 'bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100' },
-];
-
 export default function LoginPage() {
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -32,8 +24,6 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
-
-    const fillDemo = (u, p) => { setUsername(u); setPassword(p); };
 
     return (
         <div className="min-h-screen flex">
@@ -158,19 +148,6 @@ export default function LoginPage() {
                                 ) : 'Sign In'}
                             </button>
                         </form>
-
-                        {/* Demo Credentials */}
-                        <div className="mt-6 pt-5 border-t border-slate-100">
-                            <p className="text-xs text-slate-400 text-center mb-3 font-medium">Quick Access — Demo Accounts</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {DEMO_CREDENTIALS.map(({ u, p, label, badge }) => (
-                                    <button key={u} onClick={() => fillDemo(u, p)}
-                                        className={`text-xs py-2.5 px-3 rounded-xl transition-all border font-semibold hover:scale-[1.02] active:scale-95 ${badge}`}>
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
 
                     {/* Back link */}
