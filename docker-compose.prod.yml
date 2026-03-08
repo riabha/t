@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: tt-postgres
+    environment:
+      POSTGRES_DB: timetable_db
+      POSTGRES_USER: timetable_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - timetable-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timetable_user -d timetable_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: tt-backend
+    environment:
+      - DATABASE_URL=postgresql://timetable_user:${DB_PASSWORD}@db:5432/timetable_db
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    networks:
+      - timetable-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend (Nginx)
+  frontend:
+    build: ./frontend
+    container_name: tt-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - timetable-network
+
+volumes:
+  postgres_data:
+
+networks:
+  timetable-network:
+    driver: bridge

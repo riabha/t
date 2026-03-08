@@ -40,8 +40,13 @@ app.include_router(dashboard.router)
 app.include_router(settings.router)
 
 @app.get("/")
-def health_check():
+def root():
     return {"status": "ok", "message": "CE Timetable API is running"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Docker healthcheck"""
+    return {"status": "healthy", "service": "timetable-api"}
 
 if __name__ == "__main__":
     import uvicorn
