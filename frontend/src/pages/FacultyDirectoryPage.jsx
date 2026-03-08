@@ -36,7 +36,7 @@ export default function FacultyDirectoryPage() {
 
     const filteredTeachers = teachers.filter(t => {
         const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            t.email?.toLowerCase().includes(searchQuery.toLowerCase());
+                            t.designation?.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesDept = selectedDept === 'all' || t.department_id === parseInt(selectedDept);
         return matchesSearch && matchesDept;
     });
@@ -96,7 +96,7 @@ export default function FacultyDirectoryPage() {
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search by name or email..."
+                                placeholder="Search by name or designation..."
                                 className="w-full pl-12 pr-4 py-3 bg-white text-slate-800 border-0 rounded-xl text-sm font-medium shadow-lg focus:ring-4 focus:ring-amber-400 transition-all outline-none"
                             />
                         </div>
@@ -167,11 +167,11 @@ export default function FacultyDirectoryPage() {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="font-bold text-slate-800 text-sm truncate">{teacher.name}</h4>
-                                                        {teacher.email && (
-                                                            <p className="text-xs text-slate-500 truncate mt-0.5">{teacher.email}</p>
-                                                        )}
                                                         {teacher.designation && (
                                                             <p className="text-xs text-slate-600 mt-1 font-medium">{teacher.designation}</p>
+                                                        )}
+                                                        {teacher.department_name && (
+                                                            <p className="text-xs text-slate-500 mt-0.5">{teacher.department_name}</p>
                                                         )}
                                                     </div>
                                                 </div>

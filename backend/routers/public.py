@@ -95,10 +95,10 @@ def public_teachers_list(db: Session = Depends(get_db)):
         {
             "id": t.id,
             "name": t.name,
-            "email": t.email,
             "designation": t.designation,
             "department_id": t.department_id,
-            "department_name": t.department.name if t.department else None
+            "department_name": t.department.name if t.department else None,
+            "seniority": t.seniority
         }
         for t in teachers
     ]
@@ -114,10 +114,11 @@ def public_teacher_detail(teacher_id: int, db: Session = Depends(get_db)):
     return {
         "id": teacher.id,
         "name": teacher.name,
-        "email": teacher.email,
         "designation": teacher.designation,
         "department_id": teacher.department_id,
-        "department_name": teacher.department.name if teacher.department else None
+        "department_name": teacher.department.name if teacher.department else None,
+        "seniority": teacher.seniority,
+        "max_contact_hours": teacher.max_contact_hours
     }
 
 
