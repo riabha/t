@@ -45,7 +45,7 @@ services:
     build: ./frontend
     container_name: tt-frontend
     ports:
-      - "8080:80"
+      - "3100:80"
     depends_on:
       - backend
     restart: always
