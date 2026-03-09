@@ -2,6 +2,9 @@
 *.md
 !README.md
 
+# Archive folder (can be deleted)
+archive/
+
 # Python
 __pycache__/
 *.py[cod]
