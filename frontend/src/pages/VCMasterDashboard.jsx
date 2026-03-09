@@ -982,8 +982,11 @@ export default function VCMasterDashboard() {
                                     <table className="w-full border-collapse">
                                         <thead>
                                             <tr>
-                                                <th rowSpan={2} className="sticky left-0 bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[140px] z-10">
-                                                    Department
+                                                <th rowSpan={2} className="sticky left-0 bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[100px] z-10">
+                                                    Dept
+                                                </th>
+                                                <th rowSpan={2} className="sticky left-[100px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[120px] z-10">
+                                                    Section
                                                 </th>
                                                 {Array(5).fill(null).map((_, dayIdx) => {
                                                     const slotsCount = dayIdx === 4 ? 6 : 8; // Friday has 6 slots, others have 8
@@ -1008,9 +1011,11 @@ export default function VCMasterDashboard() {
                                         <tbody>
                                             {heatmapGrid.map((section) => (
                                                 <tr key={`${section.deptId}-${section.sectionId}`} className="hover:bg-slate-50">
-                                                    <td className="sticky left-0 bg-white border border-slate-300 p-3 font-medium text-slate-800 z-10">
-                                                        <div className="font-bold text-sm">{section.deptCode}</div>
-                                                        <div className="text-xs text-slate-600 mt-0.5">{section.sectionName}</div>
+                                                    <td className="sticky left-0 bg-white border border-slate-300 p-3 font-bold text-slate-800 z-10 text-center">
+                                                        {section.deptCode}
+                                                    </td>
+                                                    <td className="sticky left-[100px] bg-white border border-slate-300 p-3 font-medium text-slate-700 z-10 text-center">
+                                                        {section.sectionName}
                                                     </td>
                                                     {section.slotData.map((day, dayIdx) => {
                                                         const slotsToShow = dayIdx === 4 ? 6 : 8; // Friday shows only 6 slots
