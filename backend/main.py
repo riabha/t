@@ -15,6 +15,13 @@ from routers import auth, teachers, subjects, assignments, rooms, timetable, dep
 # Create tables
 Base.metadata.create_all(bind=engine)
 
+# Fix database sequences on startup
+try:
+    from fix_sequences import fix_all_sequences
+    fix_all_sequences()
+except Exception as e:
+    print(f"Warning: Could not fix sequences on startup: {e}")
+
 app = FastAPI(title="Civil Engineering Timetable Portal")
 
 # CORS
