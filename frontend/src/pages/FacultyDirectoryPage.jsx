@@ -12,8 +12,6 @@ export default function FacultyDirectoryPage() {
     const navigate = useNavigate();
     const [teachers, setTeachers] = useState([]);
     const [departments, setDepartments] = useState([]);
-    const [timetables, setTimetables] = useState([]);
-    const [teacherWorkloads, setTeacherWorkloads] = useState({});
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDept, setSelectedDept] = useState('all');
@@ -24,76 +22,16 @@ export default function FacultyDirectoryPage() {
 
     const loadData = async () => {
         try {
-            const [teachersRes, deptsRes, ttRes] = await Promise.all([
+            const [teachersRes, deptsRes] = await Promise.all([
                 axios.get(`${API_BASE}/teachers`),
-                axios.get(`${API_BASE}/departments`),
-                axios.get(`${API_BASE}/timetables`)
+                axios.get(`${API_BASE}/departments`)
             ]);
             setTeachers(teachersRes.data);
             setDepartments(deptsRes.data);
-            
-            // Get active timetables
-            const activeTTs = ttRes.data.filter(t => t.status !== 'archived');
-            setTimetables(activeTTs);
-            
-            // Load workload for each teacher from latest timetable
-            if (activeTTs.length > 0) {
-                await loadTeacherWorkloads(teachersRes.data, activeTTs);
-            }
         } catch (err) {
             console.error('Failed to load faculty data:', err);
         }
         setLoading(false);
-    };
-
-    const loadTeacherWorkloads = async (teachersList, timetablesList) => {
-        const workloads = {};
-        
-        // Group timetables by department and get the latest one for each
-        const latestTTByDept = {};
-        timetablesList.forEach(tt => {
-            if (!latestTTByDept[tt.department_id] || 
-                new Date(tt.created_at) > new Date(latestTTByDept[tt.department_id].created_at)) {
-                latestTTByDept[tt.department_id] = tt;
-            }
-        });
-        
-        // For each teacher, get their schedule from the latest timetable only
-        for (const teacher of teachersList) {
-            const latestTT = latestTTByDept[teacher.department_id];
-            
-            if (latestTT) {
-                try {
-                    const res = await axios.get(`${API_BASE}/timetables/${latestTT.id}/teacher/${teacher.id}`);
-                    const slots = res.data.slots || [];
-                    
-                    // Calculate workload from latest timetable only
-                    const subjects = new Set();
-                    const sections = new Set();
-                    let totalHours = 0;
-                    
-                    slots.forEach(slot => {
-                        if (!slot.is_break) {
-                            if (slot.subject_code) subjects.add(slot.subject_code);
-                            if (slot.section_name) sections.add(slot.section_name);
-                            totalHours += 1; // Each slot is 1 hour
-                        }
-                    });
-                    
-                    workloads[teacher.id] = {
-                        subjects: Array.from(subjects),
-                        sections: Array.from(sections),
-                        totalHours,
-                        timetableName: latestTT.name
-                    };
-                } catch (err) {
-                    // Teacher might not have any classes in this timetable
-                    console.error(`Failed to load workload for teacher ${teacher.id}:`, err);
-                }
-            }
-        }
-        
-        setTeacherWorkloads(workloads);
     };
 
     const filteredTeachers = teachers.filter(t => {
@@ -241,9 +179,7 @@ export default function FacultyDirectoryPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {deptTeachers.map(teacher => {
-                                            const workload = teacherWorkloads[teacher.id];
-                                            return (
+                                        {deptTeachers.map(teacher => (
                                             <div
                                                 key={teacher.id}
                                                 className={`bg-white rounded-xl border-2 border-slate-200 ${c.card} p-5 shadow-sm transition-all duration-200 hover:shadow-md`}
@@ -263,38 +199,6 @@ export default function FacultyDirectoryPage() {
                                                     </div>
                                                 </div>
 
-                                                {/* Workload Info */}
-                                                {workload && (
-                                                    <div className="mt-3 space-y-2">
-                                                        <div className="flex items-center justify-between text-xs">
-                                                            <span className="text-slate-600 font-medium">Teaching Load:</span>
-                                                            <span className="font-bold text-slate-800">{workload.totalHours} hrs/week</span>
-                                                        </div>
-                                                        {workload.subjects.length > 0 && (
-                                                            <div>
-                                                                <span className="text-xs text-slate-600 font-medium">Subjects:</span>
-                                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                                    {workload.subjects.slice(0, 3).map((subj, idx) => (
-                                                                        <span key={idx} className={`px-2 py-0.5 ${c.badge} rounded text-[10px] font-bold`}>
-                                                                            {subj}
-                                                                        </span>
-                                                                    ))}
-                                                                    {workload.subjects.length > 3 && (
-                                                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
-                                                                            +{workload.subjects.length - 3}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {workload.sections.length > 0 && (
-                                                            <div className="text-xs text-slate-500">
-                                                                Teaching {workload.sections.length} section{workload.sections.length !== 1 ? 's' : ''}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-
                                                 <div className="mt-4 pt-4 border-t border-slate-100">
                                                     <Link
                                                         to={`/faculty/${teacher.id}`}
@@ -305,7 +209,7 @@ export default function FacultyDirectoryPage() {
                                                     </Link>
                                                 </div>
                                             </div>
-                                        );})}
+                                        ))}
                                     </div>
                                 </div>
                             );
@@ -342,9 +246,7 @@ export default function FacultyDirectoryPage() {
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {deptTeachers.map(teacher => {
-                                                    const workload = teacherWorkloads[teacher.id];
-                                                    return (
+                                                {deptTeachers.map(teacher => (
                                                     <div
                                                         key={teacher.id}
                                                         className={`bg-white rounded-xl border-2 border-slate-200 ${colors.card} p-5 shadow-sm transition-all duration-200 hover:shadow-md`}
@@ -367,38 +269,6 @@ export default function FacultyDirectoryPage() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Workload Info */}
-                                                        {workload && (
-                                                            <div className="mt-3 space-y-2">
-                                                                <div className="flex items-center justify-between text-xs">
-                                                                    <span className="text-slate-600 font-medium">Lab Hours:</span>
-                                                                    <span className="font-bold text-slate-800">{workload.totalHours} hrs/week</span>
-                                                                </div>
-                                                                {workload.subjects.length > 0 && (
-                                                                    <div>
-                                                                        <span className="text-xs text-slate-600 font-medium">Lab Subjects:</span>
-                                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                                            {workload.subjects.slice(0, 3).map((subj, idx) => (
-                                                                                <span key={idx} className={`px-2 py-0.5 ${colors.badge} rounded text-[10px] font-bold`}>
-                                                                                    {subj}
-                                                                                </span>
-                                                                            ))}
-                                                                            {workload.subjects.length > 3 && (
-                                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
-                                                                                    +{workload.subjects.length - 3}
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                                {workload.sections.length > 0 && (
-                                                                    <div className="text-xs text-slate-500">
-                                                                        Supervising {workload.sections.length} section{workload.sections.length !== 1 ? 's' : ''}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-
                                                         <div className="mt-4 pt-4 border-t border-slate-100">
                                                             <Link
                                                                 to={`/faculty/${teacher.id}`}
@@ -409,7 +279,7 @@ export default function FacultyDirectoryPage() {
                                                             </Link>
                                                         </div>
                                                     </div>
-                                                );})}
+                                                ))}
                                             </div>
                                         </div>
                                     );
