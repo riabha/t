@@ -88,37 +88,56 @@ export default function VCMasterDashboard() {
                         sections: res.data.sections || []
                     };
 
-                    // Group slots by section for better visualization
+                    // Group sections by batch (year)
                     const slots = res.data.slots || [];
                     const sections = res.data.sections || [];
                     
-                    // Create a row for each section
+                    // Group sections by batch
+                    const batchGroups = {};
                     sections.forEach(section => {
-                        const sectionSlots = slots.filter(s => s.section_id === section.id);
+                        const batchYear = section.batch_year;
+                        if (!batchGroups[batchYear]) {
+                            batchGroups[batchYear] = [];
+                        }
+                        batchGroups[batchYear].push(section);
+                    });
+
+                    // Create a row for each batch
+                    Object.entries(batchGroups).forEach(([batchYear, batchSections]) => {
+                        // Sort sections by name
+                        batchSections.sort((a, b) => a.display_name.localeCompare(b.display_name));
+                        
+                        // Create slot data with all sections in each slot
                         const slotData = Array(5).fill(null).map(() => 
                             Array(8).fill(null).map(() => [])
                         );
                         
-                        sectionSlots.forEach(slot => {
-                            if (!slot.is_break && slot.day >= 0 && slot.day < 5 && slot.slot_index >= 0 && slot.slot_index < 8) {
-                                slotData[slot.day][slot.slot_index].push({
-                                    subject_code: slot.subject_code,
-                                    section_name: slot.section_name,
-                                    is_lab: slot.is_lab,
-                                    room_name: slot.room_name,
-                                    teacher_name: slot.is_lab ? slot.lab_engineer_name : slot.teacher_name
-                                });
-                            }
+                        // For each slot, collect classes from all sections in this batch
+                        batchSections.forEach(section => {
+                            const sectionSlots = slots.filter(s => s.section_id === section.id);
+                            sectionSlots.forEach(slot => {
+                                if (!slot.is_break && slot.day >= 0 && slot.day < 5 && slot.slot_index >= 0 && slot.slot_index < 8) {
+                                    slotData[slot.day][slot.slot_index].push({
+                                        subject_code: slot.subject_code,
+                                        section_name: slot.section_name,
+                                        section_id: section.id,
+                                        is_lab: slot.is_lab,
+                                        room_name: slot.room_name,
+                                        teacher_name: slot.is_lab ? slot.lab_engineer_name : slot.teacher_name
+                                    });
+                                }
+                            });
                         });
 
                         heatmap.push({
                             deptId: dept.id,
                             deptName: dept.name,
                             deptCode: dept.code,
-                            sectionId: section.id,
-                            sectionName: section.display_name,
+                            batchYear: batchYear,
+                            sections: batchSections.map(s => s.display_name),
+                            sectionIds: batchSections.map(s => s.id),
                             slotData: slotData,
-                            totalClasses: sectionSlots.filter(s => !s.is_break).length
+                            totalClasses: slots.filter(s => !s.is_break && batchSections.some(bs => bs.id === s.section_id)).length
                         });
                     });
                 } catch (err) {
@@ -982,14 +1001,17 @@ export default function VCMasterDashboard() {
                                     <table className="w-full border-collapse">
                                         <thead>
                                             <tr>
-                                                <th rowSpan={2} className="sticky left-0 bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[100px] z-10">
+                                                <th rowSpan={2} className="sticky left-0 bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[80px] z-10">
                                                     Dept
                                                 </th>
-                                                <th rowSpan={2} className="sticky left-[100px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[120px] z-10">
-                                                    Section
+                                                <th rowSpan={2} className="sticky left-[80px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[60px] z-10">
+                                                    Batch
+                                                </th>
+                                                <th rowSpan={2} className="sticky left-[140px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[100px] z-10">
+                                                    Sections
                                                 </th>
                                                 {Array(5).fill(null).map((_, dayIdx) => {
-                                                    const slotsCount = dayIdx === 4 ? 6 : 8; // Friday has 6 slots, others have 8
+                                                    const slotsCount = dayIdx === 4 ? 6 : 8;
                                                     return (
                                                         <th key={dayIdx} colSpan={slotsCount} className="border border-slate-300 p-2 text-center font-bold text-slate-700 bg-slate-50">
                                                             {getDayName(dayIdx)}
@@ -999,9 +1021,9 @@ export default function VCMasterDashboard() {
                                             </tr>
                                             <tr>
                                                 {Array(5).fill(null).map((_, dayIdx) => {
-                                                    const slotsCount = dayIdx === 4 ? 6 : 8; // Friday has 6 slots, others have 8
+                                                    const slotsCount = dayIdx === 4 ? 6 : 8;
                                                     return Array(slotsCount).fill(null).map((_, slotIdx) => (
-                                                        <th key={`${dayIdx}-${slotIdx}`} className="border border-slate-300 p-1 text-[10px] text-slate-500 bg-slate-50 min-w-[60px]">
+                                                        <th key={`${dayIdx}-${slotIdx}`} className="border border-slate-300 p-1 text-[10px] text-slate-500 bg-slate-50 min-w-[80px]">
                                                             S{slotIdx + 1}
                                                         </th>
                                                     ));
@@ -1009,43 +1031,62 @@ export default function VCMasterDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {heatmapGrid.map((section) => (
-                                                <tr key={`${section.deptId}-${section.sectionId}`} className="hover:bg-slate-50">
+                                            {heatmapGrid.map((batch) => (
+                                                <tr key={`${batch.deptId}-${batch.batchYear}`} className="hover:bg-slate-50">
                                                     <td className="sticky left-0 bg-white border border-slate-300 p-3 font-bold text-slate-800 z-10 text-center">
-                                                        {section.deptCode}
+                                                        {batch.deptCode}
                                                     </td>
-                                                    <td className="sticky left-[100px] bg-white border border-slate-300 p-3 font-medium text-slate-700 z-10 text-center">
-                                                        {section.sectionName}
+                                                    <td className="sticky left-[80px] bg-white border border-slate-300 p-3 font-bold text-slate-700 z-10 text-center">
+                                                        {batch.batchYear}
                                                     </td>
-                                                    {section.slotData.map((day, dayIdx) => {
-                                                        const slotsToShow = dayIdx === 4 ? 6 : 8; // Friday shows only 6 slots
+                                                    <td className="sticky left-[140px] bg-white border border-slate-300 p-2 text-xs text-slate-600 z-10 text-center">
+                                                        {batch.sections.map(s => s.split('-').pop()).join(', ')}
+                                                    </td>
+                                                    {batch.slotData.map((day, dayIdx) => {
+                                                        const slotsToShow = dayIdx === 4 ? 6 : 8;
                                                         return day.slice(0, slotsToShow).map((classes, slotIdx) => {
                                                             const count = classes.length;
+                                                            // Group classes by section for display
+                                                            const classesBySection = {};
+                                                            classes.forEach(cls => {
+                                                                const sectionLetter = cls.section_name.split('-').pop();
+                                                                if (!classesBySection[sectionLetter]) {
+                                                                    classesBySection[sectionLetter] = [];
+                                                                }
+                                                                classesBySection[sectionLetter].push(cls);
+                                                            });
+                                                            
                                                             return (
                                                                 <td 
                                                                     key={`${dayIdx}-${slotIdx}`}
-                                                                    className={`border border-slate-300 p-2 text-[10px] leading-tight transition-colors cursor-pointer hover:shadow-lg hover:scale-105 min-w-[100px] max-w-[120px] ${
+                                                                    className={`border border-slate-300 p-1.5 text-[9px] leading-tight transition-colors cursor-pointer hover:shadow-lg min-w-[80px] ${
                                                                         count === 0 ? 'bg-slate-50' :
-                                                                        count === 1 ? 'bg-emerald-50' :
                                                                         'bg-blue-50'
                                                                     }`}
-                                                                    title={`${section.sectionName} - ${getDayName(dayIdx)} Slot ${slotIdx + 1}\n${classes.map(c => `${c.subject_code}${c.is_lab ? ' (Lab)' : ''}`).join('\n')}`}>
+                                                                    title={`Batch ${batch.batchYear} - ${getDayName(dayIdx)} Slot ${slotIdx + 1}\n${classes.map(c => `${c.section_name}: ${c.subject_code}${c.is_lab ? ' (Lab)' : ''}`).join('\n')}`}>
                                                                     {count > 0 ? (
-                                                                        <div className="space-y-1">
-                                                                            {classes.map((cls, idx) => (
-                                                                                <div 
-                                                                                    key={idx}
-                                                                                    className={`px-1.5 py-1 rounded text-[10px] font-bold truncate shadow-sm ${
-                                                                                        cls.is_lab 
-                                                                                            ? 'bg-emerald-600 text-white' 
-                                                                                            : 'bg-blue-600 text-white'
-                                                                                    }`}>
-                                                                                    {cls.subject_code}
+                                                                        <div className="space-y-0.5">
+                                                                            {Object.entries(classesBySection).map(([section, sectionClasses]) => (
+                                                                                <div key={section} className="flex items-center gap-1">
+                                                                                    <span className="font-bold text-[8px] text-slate-500 min-w-[12px]">{section}:</span>
+                                                                                    <div className="flex-1 flex flex-wrap gap-0.5">
+                                                                                        {sectionClasses.map((cls, idx) => (
+                                                                                            <span 
+                                                                                                key={idx}
+                                                                                                className={`px-1 py-0.5 rounded text-[8px] font-bold ${
+                                                                                                    cls.is_lab 
+                                                                                                        ? 'bg-emerald-600 text-white' 
+                                                                                                        : 'bg-blue-600 text-white'
+                                                                                                }`}>
+                                                                                                {cls.subject_code}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                    </div>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
                                                                     ) : (
-                                                                        <div className="text-slate-300 text-center text-sm">—</div>
+                                                                        <div className="text-slate-300 text-center">—</div>
                                                                     )}
                                                                 </td>
                                                             );
