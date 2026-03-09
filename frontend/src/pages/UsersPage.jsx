@@ -42,33 +42,57 @@ export default function UsersPage() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        
+        console.log('Creating user with data:', formData);
+        
         // Validate: clerk must have a department
         if (formData.role === 'clerk' && !formData.department_id) {
             alert('Clerk must be assigned to a department');
             return;
         }
+        
+        // Validate: password is required for new users
+        if (!editingUser && !formData.password) {
+            alert('Password is required for new users');
+            return;
+        }
+        
         try {
             const payload = { ...formData };
+            
+            // Convert department_id to number or null
+            payload.department_id = payload.department_id ? parseInt(payload.department_id) : null;
+            
             // Clerks don't get admin permissions
             if (payload.role === 'clerk') {
                 payload.can_manage_restrictions = false;
                 payload.can_delete_timetable = false;
             }
             
+            console.log('Sending payload:', payload);
+            
             if (editingUser) {
                 // Update existing user
                 const updatePayload = { ...payload };
                 delete updatePayload.password; // Don't send password on update
+                console.log('Updating user:', editingUser.id);
                 await api.put(`/users/${editingUser.id}`, updatePayload);
+                alert('User updated successfully!');
             } else {
                 // Create new user
-                await api.post('/users/', payload);
+                console.log('Creating new user...');
+                const response = await api.post('/users/', payload);
+                console.log('User created:', response.data);
+                alert('User created successfully!');
             }
             
             resetForm();
             loadData();
         } catch (err) {
-            alert(err.response?.data?.detail || `Failed to ${editingUser ? 'update' : 'create'} user`);
+            console.error('Error creating/updating user:', err);
+            console.error('Error response:', err.response?.data);
+            const errorMsg = err.response?.data?.detail || `Failed to ${editingUser ? 'update' : 'create'} user`;
+            alert(`Error: ${errorMsg}`);
         }
     };
 
