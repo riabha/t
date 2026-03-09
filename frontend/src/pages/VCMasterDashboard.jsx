@@ -837,6 +837,45 @@ export default function VCMasterDashboard() {
                         </div>
                     )}
 
+                    {/* Live Classes */}
+                    <div className="glass p-6 rounded-xl">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                            Classes Happening Now ({liveClasses.length})
+                        </h2>
+                        
+                        {liveClasses.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {liveClasses.map((cls, idx) => (
+                                    <div key={idx} className="bg-white rounded-lg border-2 border-green-200 p-4 hover:shadow-md transition-shadow">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <h3 className="font-bold text-slate-800">{cls.subject_code}</h3>
+                                            {cls.is_lab && (
+                                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">
+                                                    LAB
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1 text-sm text-slate-600">
+                                            <p><span className="font-medium">Section:</span> {cls.section_name}</p>
+                                            <p><span className="font-medium">{cls.is_lab ? 'Lab Engineer:' : 'Teacher:'}</span> {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name}</p>
+                                            <p><span className="font-medium">Room:</span> {cls.room_name || 'TBA'}</p>
+                                            <p className="text-xs text-slate-500 mt-2">{cls.department_name}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-slate-500">
+                                <HiOutlineClock className="w-16 h-16 mx-auto mb-3 opacity-50" />
+                                <p className="font-medium">No classes in progress at this time</p>
+                                <p className="text-sm mt-1">
+                                    {todaySummary.isWeekend ? 'It\'s the weekend!' : 'Classes run from 8:30 AM to 4:30 PM'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Department Cards Grid */}
                     <div>
                         <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -890,45 +929,6 @@ export default function VCMasterDashboard() {
                                 </div>
                             ))}
                         </div>
-                    </div>
-
-                    {/* Live Classes */}
-                    <div className="glass p-6 rounded-xl">
-                        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                            Classes Happening Now ({liveClasses.length})
-                        </h2>
-                        
-                        {liveClasses.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {liveClasses.map((cls, idx) => (
-                                    <div key={idx} className="bg-white rounded-lg border-2 border-green-200 p-4 hover:shadow-md transition-shadow">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <h3 className="font-bold text-slate-800">{cls.subject_code}</h3>
-                                            {cls.is_lab && (
-                                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">
-                                                    LAB
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1 text-sm text-slate-600">
-                                            <p><span className="font-medium">Section:</span> {cls.section_name}</p>
-                                            <p><span className="font-medium">{cls.is_lab ? 'Lab Engineer:' : 'Teacher:'}</span> {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name}</p>
-                                            <p><span className="font-medium">Room:</span> {cls.room_name || 'TBA'}</p>
-                                            <p className="text-xs text-slate-500 mt-2">{cls.department_name}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 text-slate-500">
-                                <HiOutlineClock className="w-16 h-16 mx-auto mb-3 opacity-50" />
-                                <p className="font-medium">No classes in progress at this time</p>
-                                <p className="text-sm mt-1">
-                                    {todaySummary.isWeekend ? 'It\'s the weekend!' : 'Classes run from 8:30 AM to 4:30 PM'}
-                                </p>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}
