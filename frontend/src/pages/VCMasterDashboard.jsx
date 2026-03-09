@@ -34,16 +34,20 @@ export default function VCMasterDashboard() {
 
     useEffect(() => {
         loadAllData();
-        // Auto-refresh live classes every 30 seconds
-        const interval = setInterval(loadLiveData, 30000);
-        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
         if (departments.length > 0 && timetables.length > 0) {
             processAllTimetables();
+            // Load live data immediately when data is ready
+            loadLiveData();
+            // Then auto-refresh every 30 seconds
+            const interval = setInterval(() => {
+                loadLiveData();
+            }, 30000);
+            return () => clearInterval(interval);
         }
-    }, [departments, timetables]);
+    }, [departments, timetables]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAllData = async () => {
         try {
@@ -153,9 +157,16 @@ export default function VCMasterDashboard() {
 
     const loadLiveData = async () => {
         try {
+            console.log('Loading live data...', { 
+                timetablesCount: timetables.length, 
+                departmentsCount: departments.length 
+            });
+            
             // Get start time from first active timetable
             const activeTTs = timetables.filter(t => t.status === 'active' || t.status === 'generated');
             let startTime = "08:30"; // Default fallback
+            
+            console.log('Active timetables:', activeTTs.length);
             
             if (activeTTs.length > 0 && activeTTs[0].start_time) {
                 startTime = activeTTs[0].start_time;
@@ -163,7 +174,10 @@ export default function VCMasterDashboard() {
             
             const { day, slot } = getCurrentDayAndSlot(startTime);
             
+            console.log('Current day and slot:', { day, slot, startTime });
+            
             if (day === null || slot === null) {
+                console.log('No classes - outside school hours or weekend');
                 setLiveClasses([]);
                 calculateTodaySummary(day, [], startTime);
                 return;
@@ -182,6 +196,8 @@ export default function VCMasterDashboard() {
                         !s.is_break
                     );
 
+                    console.log(`Timetable ${tt.id}: ${currentSlots.length} classes in current slot`);
+
                     currentSlots.forEach(s => {
                         allClasses.push({
                             ...s,
@@ -195,6 +211,7 @@ export default function VCMasterDashboard() {
                 }
             }
 
+            console.log('Total live classes found:', allClasses.length);
             setLiveClasses(allClasses);
             calculateTodaySummary(day, allClasses, startTime);
         } catch (err) {
