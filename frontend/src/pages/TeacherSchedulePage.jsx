@@ -12,19 +12,11 @@ export default function TeacherSchedulePage() {
     const { teacherId } = useParams();
     const [teacher, setTeacher] = useState(null);
     const [schedule, setSchedule] = useState(null);
-    const [timetables, setTimetables] = useState([]);
-    const [selectedTT, setSelectedTT] = useState('');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadData();
     }, [teacherId]);
-
-    useEffect(() => {
-        if (selectedTT) {
-            loadSchedule(selectedTT);
-        }
-    }, [selectedTT]);
 
     const loadData = async () => {
         try {
@@ -34,12 +26,18 @@ export default function TeacherSchedulePage() {
             ]);
             setTeacher(teacherRes.data);
             
-            // Filter active timetables
-            const activeTTs = ttRes.data.filter(t => t.status !== 'archived');
-            setTimetables(activeTTs);
+            // Get the latest active timetable for this teacher's department
+            const activeTTs = ttRes.data.filter(t => 
+                t.status !== 'archived' && 
+                t.department_id === teacherRes.data.department_id
+            );
             
             if (activeTTs.length > 0) {
-                setSelectedTT(activeTTs[0].id.toString());
+                // Sort by created_at to get the latest
+                activeTTs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                await loadSchedule(activeTTs[0].id, activeTTs[0].name);
+            } else {
+                setSchedule({ slots: [], timetableName: 'No active timetable' });
             }
         } catch (err) {
             console.error('Failed to load teacher data:', err);
@@ -47,15 +45,18 @@ export default function TeacherSchedulePage() {
         setLoading(false);
     };
 
-    const loadSchedule = async (ttId) => {
+    const loadSchedule = async (ttId, ttName) => {
         try {
             const res = await axios.get(`${API_BASE}/timetables/${ttId}/teacher/${teacherId}`);
             console.log('Teacher schedule loaded:', res.data);
-            setSchedule(res.data);
+            setSchedule({
+                ...res.data,
+                timetableName: ttName
+            });
         } catch (err) {
             console.error('Failed to load schedule:', err);
             console.error('Error response:', err.response?.data);
-            setSchedule({ slots: [] }); // Set empty schedule instead of null
+            setSchedule({ slots: [], timetableName: ttName || 'Unknown' });
         }
     };
 
@@ -141,19 +142,13 @@ export default function TeacherSchedulePage() {
                                 </div>
                             </div>
 
-                            {/* Timetable Selector */}
-                            {timetables.length > 0 && (
+                            {/* Current Timetable Info */}
+                            {schedule && schedule.timetableName && (
                                 <div className="mt-6">
-                                    <label className="block text-xs font-bold text-blue-200 uppercase tracking-wider mb-2">Select Timetable</label>
-                                    <select
-                                        value={selectedTT}
-                                        onChange={(e) => setSelectedTT(e.target.value)}
-                                        className="px-4 py-3 bg-white text-slate-800 border-0 rounded-xl text-sm font-bold shadow-lg focus:ring-4 focus:ring-amber-400 transition-all outline-none"
-                                    >
-                                        {timetables.map(tt => (
-                                            <option key={tt.id} value={tt.id}>{tt.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl">
+                                        <HiOutlineCalendar className="w-4 h-4" />
+                                        <span className="text-sm font-medium">Current Schedule: {schedule.timetableName}</span>
+                                    </div>
                                 </div>
                             )}
                         </div>
