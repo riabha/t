@@ -34,11 +34,19 @@ def seed():
 
     # ── Rooms ───────────────────────────────────────────────────
     rooms = {}
-    for i in range(1, 21):
-        r = Room(name=f"CR-{i:02d}")
+    # Create 12 classrooms
+    for i in range(1, 13):
+        r = Room(name=f"CR-{i:02d}", is_lab=False)
         db.add(r)
         db.flush()
         rooms[i] = r
+    
+    # Create 6 labs
+    for i in range(1, 7):
+        r = Room(name=f"Lab-{i}", is_lab=True)
+        db.add(r)
+        db.flush()
+        rooms[12 + i] = r
 
     # ── Sections ────────────────────────────────────────────────
     sections = {}
@@ -47,7 +55,11 @@ def seed():
     for yr in [22, 23, 24, 25]:
         b = batches[(yr, "CE")]
         for sec_name in ["A", "B", "C"]:
-            s = Section(name=sec_name, batch_id=b.id, room_id=rooms[room_idx].id)
+            # Only use classrooms (1-12) for sections
+            if room_idx <= 12:
+                s = Section(name=sec_name, batch_id=b.id, room_id=rooms[room_idx].id)
+            else:
+                s = Section(name=sec_name, batch_id=b.id, room_id=None)
             db.add(s)
             db.flush()
             sections[(yr, "CE", sec_name)] = s
@@ -57,7 +69,11 @@ def seed():
     for yr in [22, 23, 24, 25]:
         for dept_code in ["CET", "BAE"]:
             b = batches[(yr, dept_code)]
-            s = Section(name="A", batch_id=b.id, room_id=rooms[room_idx].id)
+            # Only use classrooms (1-12) for sections
+            if room_idx <= 12:
+                s = Section(name="A", batch_id=b.id, room_id=rooms[room_idx].id)
+            else:
+                s = Section(name="A", batch_id=b.id, room_id=None)
             db.add(s)
             db.flush()
             sections[(yr, dept_code, "A")] = s
@@ -392,6 +408,14 @@ def seed():
     db.commit()
     db.close()
     print("✅ Database seeded successfully!")
+    print("   - 3 Departments (CE, CET, BAE)")
+    print("   - 12 Batches (4 years × 3 departments)")
+    print("   - 12 Classrooms (CR-01 to CR-12)")
+    print("   - 6 Labs (Lab-1 to Lab-6)")
+    print("   - 20 Sections")
+    print("   - 26 Teachers (20 regular + 6 lab engineers)")
+    print("   - 100+ Subjects across all departments")
+    print("")
     print("   Login: admin / admin123  (Super Admin)")
     print("   Login: admin_ce / admin123  (CE Program Admin)")
     print("   Login: admin_cet / admin123  (CET Program Admin)")

@@ -94,15 +94,36 @@ def list_batches(department_id: int = None, db: Session = Depends(get_db),
 @router.post("/batches", response_model=BatchOut)
 def create_batch(data: BatchCreate, db: Session = Depends(get_db),
                  user=Depends(require_role("super_admin", "program_admin"))):
-    batch = Batch(year=data.year, department_id=data.department_id,
-                  semester=data.semester)
+    # Check for duplicate batch
+    existing = db.query(Batch).filter(
+        Batch.year == data.year,
+        Batch.department_id == data.department_id
+    ).first()
+    if existing:
+        raise HTTPException(400, f"Batch {data.year} already exists for this department")
+    
+    batch = Batch(
+        year=data.year, 
+        department_id=data.department_id,
+        semester=data.semester,
+        morning_lab_mode=data.morning_lab_mode,
+        morning_lab_count=data.morning_lab_count,
+        morning_lab_days=data.morning_lab_days if data.morning_lab_days else []
+    )
     db.add(batch)
     db.commit()
     db.refresh(batch)
-    return BatchOut(id=batch.id, year=batch.year,
-                    department_id=batch.department_id, semester=batch.semester,
-                    department_code=batch.department.code,
-                    display_name=batch.display_name)
+    return BatchOut(
+        id=batch.id, 
+        year=batch.year,
+        department_id=batch.department_id, 
+        semester=batch.semester,
+        department_code=batch.department.code,
+        display_name=batch.display_name,
+        morning_lab_mode=batch.morning_lab_mode,
+        morning_lab_count=batch.morning_lab_count,
+        morning_lab_days=batch.morning_lab_days if batch.morning_lab_days else []
+    )
 
 
 @router.delete("/batches/{batch_id}")

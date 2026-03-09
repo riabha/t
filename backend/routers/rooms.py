@@ -33,10 +33,8 @@ def create_room(data: RoomCreate, db: Session = Depends(get_db),
     if user.role == "program_admin":
         dept_id = user.department_id
     else:
-        # Super admin must specify department
+        # Super admin can create global rooms (null department_id) or department-specific rooms
         dept_id = data.department_id
-        if not dept_id:
-            raise HTTPException(400, "Super admin must specify department_id")
     
     r = Room(name=data.name, capacity=data.capacity, department_id=dept_id, is_lab=data.is_lab)
     db.add(r)
