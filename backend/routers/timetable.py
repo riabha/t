@@ -306,11 +306,13 @@ def get_timetable(tt_id: int, db: Session = Depends(get_db), user=Depends(get_cu
 
     # Get all sections for this timetable
     section_ids = set(s.section_id for s in slots if s.section_id)
-    sections = db.query(Section).filter(Section.id.in_(section_ids)).all() if section_ids else []
+    sections = db.query(Section).options(joinedload(Section.batch)).filter(Section.id.in_(section_ids)).all() if section_ids else []
     sections_list = [{
         "id": sec.id,
         "name": sec.display_name,
-        "batch_id": sec.batch_id
+        "display_name": sec.display_name,
+        "batch_id": sec.batch_id,
+        "batch_year": sec.batch.year if sec.batch else None
     } for sec in sections]
 
     return {

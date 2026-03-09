@@ -152,15 +152,22 @@ export default function VCMasterDashboard() {
 
     const loadLiveData = async () => {
         try {
-            const { day, slot } = getCurrentDayAndSlot();
+            // Get start time from first active timetable
+            const activeTTs = timetables.filter(t => t.status === 'active' || t.status === 'generated');
+            let startTime = "08:30"; // Default fallback
+            
+            if (activeTTs.length > 0 && activeTTs[0].start_time) {
+                startTime = activeTTs[0].start_time;
+            }
+            
+            const { day, slot } = getCurrentDayAndSlot(startTime);
             
             if (day === null || slot === null) {
                 setLiveClasses([]);
-                calculateTodaySummary(day);
+                calculateTodaySummary(day, [], startTime);
                 return;
             }
 
-            const activeTTs = timetables.filter(t => t.status === 'active' || t.status === 'generated');
             const allClasses = [];
             
             for (const tt of activeTTs) {
@@ -178,7 +185,8 @@ export default function VCMasterDashboard() {
                         allClasses.push({
                             ...s,
                             timetable_name: tt.name,
-                            department_name: departments.find(d => d.id === tt.department_id)?.name
+                            department_name: departments.find(d => d.id === tt.department_id)?.name,
+                            department_id: tt.department_id
                         });
                     });
                 } catch (err) {
@@ -187,13 +195,13 @@ export default function VCMasterDashboard() {
             }
 
             setLiveClasses(allClasses);
-            calculateTodaySummary(day, allClasses);
+            calculateTodaySummary(day, allClasses, startTime);
         } catch (err) {
             console.error('Failed to load live data:', err);
         }
     };
 
-    const getCurrentDayAndSlot = () => {
+    const getCurrentDayAndSlot = (startTime = "08:30") => {
         const now = new Date();
         const dayOfWeek = now.getDay();
         let dayIndex = dayOfWeek - 1;
@@ -202,8 +210,11 @@ export default function VCMasterDashboard() {
             return { day: null, slot: null };
         }
 
+        // Parse start time (format: "HH:MM")
+        const [startHour, startMinute] = startTime.split(':').map(Number);
+        const startMinutes = startHour * 60 + startMinute;
+        
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const startMinutes = 8 * 60 + 30;
         const classDuration = 60;
 
         if (currentMinutes < startMinutes) {
@@ -255,13 +266,13 @@ export default function VCMasterDashboard() {
         setDepartmentStats(deptStats);
     };
 
-    const calculateTodaySummary = (day, classes = []) => {
+    const calculateTodaySummary = (day, classes = [], startTime = "08:30") => {
         if (day === null) {
             setTodaySummary({ isWeekend: true });
             return;
         }
 
-        const { slot: currentSlot } = getCurrentDayAndSlot();
+        const { slot: currentSlot } = getCurrentDayAndSlot(startTime);
         const totalSlots = 8;
         const completedSlots = currentSlot !== null ? currentSlot : 0;
         const remainingSlots = totalSlots - completedSlots;
@@ -273,7 +284,8 @@ export default function VCMasterDashboard() {
             completedSlots,
             remainingSlots,
             activeClasses: classes.length,
-            dayName: getDayName(day)
+            dayName: getDayName(day),
+            startTime
         });
     };
 
@@ -281,9 +293,8 @@ export default function VCMasterDashboard() {
         return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][index] || '';
     };
 
-    const getSlotTime = (index) => {
-        const startHour = 8;
-        const startMinute = 30;
+    const getSlotTime = (index, startTime = "08:30") => {
+        const [startHour, startMinute] = startTime.split(':').map(Number);
         const hour = startHour + Math.floor((startMinute + index * 60) / 60);
         const minute = (startMinute + index * 60) % 60;
         const endHour = startHour + Math.floor((startMinute + (index + 1) * 60) / 60);
@@ -301,6 +312,13 @@ export default function VCMasterDashboard() {
 
     const exportMasterPDF = async () => {
         try {
+            // Get start time from first active timetable
+            const activeTTs = timetables.filter(t => t.status === 'active' || t.status === 'generated');
+            let startTime = "08:30";
+            if (activeTTs.length > 0 && activeTTs[0].start_time) {
+                startTime = activeTTs[0].start_time;
+            }
+            
             const doc = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
@@ -675,7 +693,7 @@ export default function VCMasterDashboard() {
                 '• Each detailed cell shows: Subject Code, Instructor Name, Room Number',
                 '• Lab classes show Lab Engineer names',
                 '• Theory classes show Teacher names',
-                '• Time slots are 60 minutes each, starting from 8:30 AM',
+                `• Time slots are 60 minutes each, starting from ${startTime}`,
                 '• This report was generated automatically from the active timetables'
             ];
 
@@ -920,7 +938,7 @@ export default function VCMasterDashboard() {
                                         }
                                     </p>
                                     <p className="text-sm mt-1">
-                                        {todaySummary.isWeekend ? 'It\'s the weekend!' : 'Classes run from 8:30 AM to 4:30 PM'}
+                                        {todaySummary.isWeekend ? 'It\'s the weekend!' : `Classes run from ${todaySummary.startTime || '8:30 AM'} to 4:30 PM`}
                                     </p>
                                 </div>
                             );
@@ -1176,6 +1194,7 @@ export default function VCMasterDashboard() {
                                 const sectionSlots = allTimetableData[selectedDepartment].slots.filter(
                                     s => s.section_id === section.id
                                 );
+                                const ttStartTime = allTimetableData[selectedDepartment].start_time || "08:30";
 
                                 return (
                                     <div key={section.id} className="mb-10">
@@ -1207,7 +1226,7 @@ export default function VCMasterDashboard() {
                                                         <tr key={slotIdx}>
                                                             <td className="border-2 border-slate-300 p-2 bg-slate-50 text-xs font-medium text-slate-600 text-center">
                                                                 <div className="font-bold">Slot {slotIdx + 1}</div>
-                                                                <div className="text-[10px] mt-1">{getSlotTime(slotIdx)}</div>
+                                                                <div className="text-[10px] mt-1">{getSlotTime(slotIdx, ttStartTime)}</div>
                                                             </td>
                                                             {Array(5).fill(null).map((_, dayIdx) => {
                                                                 const slot = sectionSlots.find(
