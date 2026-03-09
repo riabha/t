@@ -88,30 +88,38 @@ export default function VCMasterDashboard() {
                         sections: res.data.sections || []
                     };
 
-                    // Calculate heatmap with actual slot data
+                    // Group slots by section for better visualization
                     const slots = res.data.slots || [];
-                    const slotData = Array(5).fill(null).map(() => 
-                        Array(8).fill(null).map(() => [])
-                    );
+                    const sections = res.data.sections || [];
                     
-                    slots.forEach(slot => {
-                        if (!slot.is_break && slot.day >= 0 && slot.day < 5 && slot.slot_index >= 0 && slot.slot_index < 8) {
-                            slotData[slot.day][slot.slot_index].push({
-                                subject_code: slot.subject_code,
-                                section_name: slot.section_name,
-                                is_lab: slot.is_lab,
-                                room_name: slot.room_name,
-                                teacher_name: slot.is_lab ? slot.lab_engineer_name : slot.teacher_name
-                            });
-                        }
-                    });
+                    // Create a row for each section
+                    sections.forEach(section => {
+                        const sectionSlots = slots.filter(s => s.section_id === section.id);
+                        const slotData = Array(5).fill(null).map(() => 
+                            Array(8).fill(null).map(() => [])
+                        );
+                        
+                        sectionSlots.forEach(slot => {
+                            if (!slot.is_break && slot.day >= 0 && slot.day < 5 && slot.slot_index >= 0 && slot.slot_index < 8) {
+                                slotData[slot.day][slot.slot_index].push({
+                                    subject_code: slot.subject_code,
+                                    section_name: slot.section_name,
+                                    is_lab: slot.is_lab,
+                                    room_name: slot.room_name,
+                                    teacher_name: slot.is_lab ? slot.lab_engineer_name : slot.teacher_name
+                                });
+                            }
+                        });
 
-                    heatmap.push({
-                        deptId: dept.id,
-                        deptName: dept.name,
-                        deptCode: dept.code,
-                        slotData: slotData,
-                        totalClasses: slots.filter(s => !s.is_break).length
+                        heatmap.push({
+                            deptId: dept.id,
+                            deptName: dept.name,
+                            deptCode: dept.code,
+                            sectionId: section.id,
+                            sectionName: section.display_name,
+                            slotData: slotData,
+                            totalClasses: sectionSlots.filter(s => !s.is_break).length
+                        });
                     });
                 } catch (err) {
                     console.error(`Failed to load timetable for ${dept.name}:`, err);
@@ -998,12 +1006,13 @@ export default function VCMasterDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {heatmapGrid.map((dept) => (
-                                                <tr key={dept.deptId} className="hover:bg-slate-50">
-                                                    <td className="sticky left-0 bg-white border border-slate-300 p-3 font-medium text-slate-800 z-10 text-center">
-                                                        <div className="font-bold text-base">{dept.deptCode}</div>
+                                            {heatmapGrid.map((section) => (
+                                                <tr key={`${section.deptId}-${section.sectionId}`} className="hover:bg-slate-50">
+                                                    <td className="sticky left-0 bg-white border border-slate-300 p-3 font-medium text-slate-800 z-10">
+                                                        <div className="font-bold text-sm">{section.deptCode}</div>
+                                                        <div className="text-xs text-slate-600 mt-0.5">{section.sectionName}</div>
                                                     </td>
-                                                    {dept.slotData.map((day, dayIdx) => {
+                                                    {section.slotData.map((day, dayIdx) => {
                                                         const slotsToShow = dayIdx === 4 ? 6 : 8; // Friday shows only 6 slots
                                                         return day.slice(0, slotsToShow).map((classes, slotIdx) => {
                                                             const count = classes.length;
@@ -1012,15 +1021,13 @@ export default function VCMasterDashboard() {
                                                                     key={`${dayIdx}-${slotIdx}`}
                                                                     className={`border border-slate-300 p-2 text-[10px] leading-tight transition-colors cursor-pointer hover:shadow-lg hover:scale-105 min-w-[100px] max-w-[120px] ${
                                                                         count === 0 ? 'bg-slate-50' :
-                                                                        count <= 2 ? 'bg-emerald-50' :
-                                                                        count <= 4 ? 'bg-blue-50' :
-                                                                        count <= 6 ? 'bg-amber-50' :
-                                                                        'bg-red-50'
+                                                                        count === 1 ? 'bg-emerald-50' :
+                                                                        'bg-blue-50'
                                                                     }`}
-                                                                    title={`${dept.deptName} - ${getDayName(dayIdx)} Slot ${slotIdx + 1}\n${classes.map(c => `${c.subject_code} (${c.section_name})`).join('\n')}`}>
+                                                                    title={`${section.sectionName} - ${getDayName(dayIdx)} Slot ${slotIdx + 1}\n${classes.map(c => `${c.subject_code}${c.is_lab ? ' (Lab)' : ''}`).join('\n')}`}>
                                                                     {count > 0 ? (
                                                                         <div className="space-y-1">
-                                                                            {classes.slice(0, 3).map((cls, idx) => (
+                                                                            {classes.map((cls, idx) => (
                                                                                 <div 
                                                                                     key={idx}
                                                                                     className={`px-1.5 py-1 rounded text-[10px] font-bold truncate shadow-sm ${
@@ -1031,11 +1038,6 @@ export default function VCMasterDashboard() {
                                                                                     {cls.subject_code}
                                                                                 </div>
                                                                             ))}
-                                                                            {count > 3 && (
-                                                                                <div className="text-[9px] text-slate-600 font-bold text-center mt-1">
-                                                                                    +{count - 3} more
-                                                                                </div>
-                                                                            )}
                                                                         </div>
                                                                     ) : (
                                                                         <div className="text-slate-300 text-center text-sm">—</div>
@@ -1055,26 +1057,22 @@ export default function VCMasterDashboard() {
                                     <span className="text-base font-bold text-slate-700">Visual Guide:</span>
                                     <div className="flex items-center gap-2">
                                         <div className="w-10 h-10 bg-slate-50 border-2 border-slate-300 rounded flex items-center justify-center text-slate-300 text-base">—</div>
-                                        <span className="text-sm text-slate-600 font-medium">No Classes</span>
+                                        <span className="text-sm text-slate-600 font-medium">Free Slot</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-3 py-2 bg-emerald-50 border-2 border-emerald-200 rounded text-[9px] font-bold">RPC, MMS</div>
-                                        <span className="text-sm text-slate-600 font-medium">Light Load (1-2 classes)</span>
+                                        <div className="px-3 py-2 bg-emerald-50 border-2 border-emerald-200 rounded">
+                                            <div className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded">LAB</div>
+                                        </div>
+                                        <span className="text-sm text-slate-600 font-medium">Lab Class</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded text-[9px] font-bold">RPC, MMS, AH</div>
-                                        <span className="text-sm text-slate-600 font-medium">Medium Load (3-4 classes)</span>
+                                        <div className="px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded">
+                                            <div className="px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded">RPC</div>
+                                        </div>
+                                        <span className="text-sm text-slate-600 font-medium">Theory Class</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-3 py-2 bg-amber-50 border-2 border-amber-200 rounded text-[9px] font-bold">RPC, MMS, AH, WSS</div>
-                                        <span className="text-sm text-slate-600 font-medium">High Load (5-6 classes)</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="px-3 py-2 bg-red-50 border-2 border-red-200 rounded text-[9px] font-bold">RPC, MMS, AH, WSS...</div>
-                                        <span className="text-sm text-slate-600 font-medium">Very High Load (7+ classes)</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-500 italic">Note: Friday shows slots 1-6 only</span>
+                                        <span className="text-xs text-slate-500 italic">Note: Each row shows one section's complete schedule. Friday shows slots 1-6 only.</span>
                                     </div>
                                 </div>
                             </>
