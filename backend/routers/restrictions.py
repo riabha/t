@@ -31,6 +31,19 @@ def _check_restrictions_access(user=Depends(get_current_user)):
 def get_teacher_restrictions(teacher_id: int, db: Session = Depends(get_db), 
                                current_user = Depends(_check_restrictions_access)):
     """Get all unavailable slots for a teacher."""
+    # Verify teacher exists
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    
+    # Check department access (super_admin can see all, others only their department)
+    if current_user.role != "super_admin":
+        if teacher.department_id != current_user.department_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only view restrictions for teachers in your department"
+            )
+    
     return db.query(TeacherRestriction).filter(TeacherRestriction.teacher_id == teacher_id).all()
 
 @router.post("/teacher/{teacher_id}", response_model=list[TeacherRestrictionOut])
@@ -42,6 +55,14 @@ def set_teacher_restrictions(teacher_id: int, restrictions: list[TeacherRestrict
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
+
+    # Check department access (super_admin can modify all, others only their department)
+    if current_user.role != "super_admin":
+        if teacher.department_id != current_user.department_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only set restrictions for teachers in your department"
+            )
 
     # Clear existing
     db.query(TeacherRestriction).filter(TeacherRestriction.teacher_id == teacher_id).delete()
@@ -65,6 +86,23 @@ def set_teacher_restrictions(teacher_id: int, restrictions: list[TeacherRestrict
 def get_schedule_config(section_id: int, db: Session = Depends(get_db), 
                          current_user = Depends(_check_restrictions_access)):
     """Get schedule configuration for a section."""
+    # Verify section exists and check department access
+    section = db.query(Section).filter(Section.id == section_id).first()
+    if not section:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    batch = db.query(Batch).filter(Batch.id == section.batch_id).first()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    # Check department access (super_admin can see all, others only their department)
+    if current_user.role != "super_admin":
+        if batch.department_id != current_user.department_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only view schedule config for sections in your department"
+            )
+    
     config = db.query(ScheduleConfig).filter(ScheduleConfig.section_id == section_id).first()
     if not config:
         # Create default config if not found
@@ -78,6 +116,23 @@ def get_schedule_config(section_id: int, db: Session = Depends(get_db),
 def save_schedule_config(req: ScheduleConfigCreate, db: Session = Depends(get_db), 
                           current_user = Depends(_check_restrictions_access)):
     """Update schedule configuration for a section."""
+    # Verify section exists and check department access
+    section = db.query(Section).filter(Section.id == req.section_id).first()
+    if not section:
+        raise HTTPException(status_code=404, detail="Section not found")
+    
+    batch = db.query(Batch).filter(Batch.id == section.batch_id).first()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    # Check department access (super_admin can modify all, others only their department)
+    if current_user.role != "super_admin":
+        if batch.department_id != current_user.department_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only modify schedule config for sections in your department"
+            )
+    
     config = db.query(ScheduleConfig).filter(ScheduleConfig.section_id == req.section_id).first()
     if config:
         config.lab_morning_days = req.lab_morning_days
@@ -100,6 +155,10 @@ def get_restrictions_summary(department_id: Optional[int] = None,
                              db: Session = Depends(get_db),
                              current_user = Depends(_check_restrictions_access)):
     """Get a summary of all active restrictions."""
+    # For non-super_admin users, force filter to their department only
+    if current_user.role != "super_admin":
+        department_id = current_user.department_id
+    
     # Logic to match teachers.py list_teachers:
     # Teachers who are in this dept OR engaged by this dept
     if not department_id:

@@ -39,15 +39,22 @@ export default function VCMasterDashboard() {
     useEffect(() => {
         if (departments.length > 0 && timetables.length > 0) {
             processAllTimetables();
-            // Load live data immediately when data is ready
+        }
+    }, [departments, timetables]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Separate effect for live data auto-refresh
+    useEffect(() => {
+        if (departments.length > 0 && timetables.length > 0) {
+            // Load immediately
             loadLiveData();
             // Then auto-refresh every 30 seconds
             const interval = setInterval(() => {
+                console.log('Auto-refreshing live data...');
                 loadLiveData();
             }, 30000);
             return () => clearInterval(interval);
         }
-    }, [departments, timetables]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [departments, timetables, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAllData = async () => {
         try {
