@@ -49,17 +49,25 @@ export default function FacultyDirectoryPage() {
     const loadTeacherWorkloads = async (teachersList, timetablesList) => {
         const workloads = {};
         
-        // For each teacher, get their schedule from the latest timetable
+        // Group timetables by department and get the latest one for each
+        const latestTTByDept = {};
+        timetablesList.forEach(tt => {
+            if (!latestTTByDept[tt.department_id] || 
+                new Date(tt.created_at) > new Date(latestTTByDept[tt.department_id].created_at)) {
+                latestTTByDept[tt.department_id] = tt;
+            }
+        });
+        
+        // For each teacher, get their schedule from the latest timetable only
         for (const teacher of teachersList) {
-            // Find the latest timetable for their department
-            const deptTT = timetablesList.find(tt => tt.department_id === teacher.department_id);
+            const latestTT = latestTTByDept[teacher.department_id];
             
-            if (deptTT) {
+            if (latestTT) {
                 try {
-                    const res = await axios.get(`${API_BASE}/timetables/${deptTT.id}/teacher/${teacher.id}`);
+                    const res = await axios.get(`${API_BASE}/timetables/${latestTT.id}/teacher/${teacher.id}`);
                     const slots = res.data.slots || [];
                     
-                    // Calculate workload
+                    // Calculate workload from latest timetable only
                     const subjects = new Set();
                     const sections = new Set();
                     let totalHours = 0;
@@ -76,9 +84,10 @@ export default function FacultyDirectoryPage() {
                         subjects: Array.from(subjects),
                         sections: Array.from(sections),
                         totalHours,
-                        timetableName: deptTT.name
+                        timetableName: latestTT.name
                     };
                 } catch (err) {
+                    // Teacher might not have any classes in this timetable
                     console.error(`Failed to load workload for teacher ${teacher.id}:`, err);
                 }
             }
