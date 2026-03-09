@@ -451,7 +451,10 @@ export default function VCMasterDashboard() {
                 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
                 
                 // First header row - Day names (Monday-Thursday: 8 cols, Friday: 6 cols)
-                const headerRow1 = [{ content: 'Department', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } }];
+                const headerRow1 = [
+                    { content: 'Dept', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+                    { content: 'Batch', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } }
+                ];
                 days.forEach((day, idx) => {
                     const colSpan = idx === 4 ? 6 : 8; // Friday has 6 slots
                     headerRow1.push({ content: day, colSpan: colSpan, styles: { halign: 'center' } });
@@ -466,18 +469,18 @@ export default function VCMasterDashboard() {
                     }
                 }
 
-                // Data rows for each department
-                heatmapGrid.forEach(dept => {
-                    const row = [dept.deptCode];
+                // Data rows for each batch
+                heatmapGrid.forEach(batch => {
+                    const row = [batch.deptCode, batch.batchYear];
                     
                     // For each day and slot
-                    dept.slotData.forEach((day, dayIdx) => {
+                    batch.slotData.forEach((day, dayIdx) => {
                         const slotsToShow = dayIdx === 4 ? 6 : 8; // Friday shows only 6 slots
                         day.slice(0, slotsToShow).forEach(classes => {
                             if (classes.length === 0) {
                                 row.push('—');
                             } else {
-                                // Group by section and show in 3 lines
+                                // Group by section and show in lines
                                 const sections = {};
                                 classes.forEach(cls => {
                                     const sectionLetter = cls.section_name.slice(-1); // Get last character (A, B, C, etc.)
@@ -489,13 +492,13 @@ export default function VCMasterDashboard() {
                                 
                                 // Build multi-line cell content
                                 const lines = [];
-                                ['A', 'B', 'C'].forEach(letter => {
+                                ['A', 'B', 'C', 'D', 'E'].forEach(letter => {
                                     if (sections[letter]) {
                                         lines.push(`${letter}: ${sections[letter].join(', ')}`);
                                     }
                                 });
                                 
-                                // If no A/B/C sections, just show all subjects
+                                // If no A/B/C/D/E sections, just show all subjects
                                 if (lines.length === 0) {
                                     row.push(classes.map(c => c.subject_code).join(', '));
                                 } else {
@@ -515,18 +518,18 @@ export default function VCMasterDashboard() {
                     theme: 'grid',
                     headStyles: { 
                         fillColor: [71, 85, 105],
-                        fontSize: 6, // Reduced from 7
+                        fontSize: 6,
                         fontStyle: 'bold',
                         halign: 'center',
                         valign: 'middle',
                         cellPadding: 1
                     },
                     bodyStyles: { 
-                        fontSize: 5, // Reduced from 6
+                        fontSize: 5,
                         halign: 'center',
                         valign: 'middle',
                         cellPadding: 1,
-                        minCellHeight: 10, // Increased to fit 3 lines
+                        minCellHeight: 10,
                         lineWidth: 0.1
                     },
                     columnStyles: {
@@ -535,11 +538,17 @@ export default function VCMasterDashboard() {
                             fontStyle: 'bold', 
                             fillColor: [248, 250, 252],
                             fontSize: 6
+                        },
+                        1: { 
+                            cellWidth: 12, 
+                            fontStyle: 'bold', 
+                            fillColor: [248, 250, 252],
+                            fontSize: 6
                         }
                     },
                     didParseCell: function(data) {
-                        // Color code cells based on content
-                        if (data.section === 'body' && data.column.index > 0) {
+                        // Color code cells based on content (skip Dept and Batch columns)
+                        if (data.section === 'body' && data.column.index > 1) {
                             const cellText = data.cell.text.join('');
                             if (cellText === '—') {
                                 data.cell.styles.fillColor = [248, 250, 252]; // Light gray for empty
@@ -566,7 +575,7 @@ export default function VCMasterDashboard() {
                 yPos = doc.lastAutoTable.finalY + 6;
                 doc.setFontSize(7);
                 doc.setFont(undefined, 'bold');
-                doc.text('Legend: A/B/C = Section names • Subject codes shown per section • "—" = no classes • Color: Green (1-2), Blue (3-4), Amber (5-6), Red (7+) • Friday: Slots 1-6 only', 14, yPos);
+                doc.text('Legend: A/B/C/D/E = Section letters • Subject codes shown per section • "—" = no classes • Color: Green (1-2), Blue (3-4), Amber (5-6), Red (7+) • Friday: Slots 1-6 only', 14, yPos);
             }
 
             // ===== DEPARTMENT TIMETABLES =====
@@ -1025,9 +1034,6 @@ export default function VCMasterDashboard() {
                                                 <th rowSpan={2} className="sticky left-[80px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[60px] z-10">
                                                     Batch
                                                 </th>
-                                                <th rowSpan={2} className="sticky left-[140px] bg-slate-50 border border-slate-300 p-3 text-center font-bold text-slate-700 min-w-[100px] z-10">
-                                                    Sections
-                                                </th>
                                                 {Array(5).fill(null).map((_, dayIdx) => {
                                                     const slotsCount = dayIdx === 4 ? 6 : 8;
                                                     return (
@@ -1056,9 +1062,6 @@ export default function VCMasterDashboard() {
                                                     </td>
                                                     <td className="sticky left-[80px] bg-white border border-slate-300 p-3 font-bold text-slate-700 z-10 text-center">
                                                         {batch.batchYear}
-                                                    </td>
-                                                    <td className="sticky left-[140px] bg-white border border-slate-300 p-2 text-xs text-slate-600 z-10 text-center">
-                                                        {batch.sections.map(s => s.split('-').pop()).join(', ')}
                                                     </td>
                                                     {batch.slotData.map((day, dayIdx) => {
                                                         const slotsToShow = dayIdx === 4 ? 6 : 8;
@@ -1136,7 +1139,7 @@ export default function VCMasterDashboard() {
                                         <span className="text-sm text-slate-600 font-medium">Theory Class</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-500 italic">Note: Each row shows one section's complete schedule. Friday shows slots 1-6 only.</span>
+                                        <span className="text-xs text-slate-500 italic">Note: Each row shows one batch with all sections (A, B, C, etc.). Friday shows slots 1-6 only.</span>
                                     </div>
                                 </div>
                             </>
