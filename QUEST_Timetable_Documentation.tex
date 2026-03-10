@@ -1,0 +1,1889 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\title{\textbf{Automated University Timetable System}\\
+\large Comprehensive Technical Documentation}
+\author{Quaid-e-Awam University of Engineering, Science \& Technology}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+
+The automated timetable system represents a sophisticated solution to one of the most challenging problems in academic administration: the generation of conflict-free class schedules that satisfy numerous constraints while optimizing resource utilization. This system has been specifically designed for university environments where multiple departments, hundreds of teachers, and thousands of students must be coordinated efficiently.
+
+At its core, the system transforms the timetabling problem into a Constraint Satisfaction Problem (CSP) with optimization objectives. Rather than relying on manual scheduling or simple heuristics, the system employs Google OR-Tools' CP-SAT (Constraint Programming - Satisfiability) solver, which uses advanced algorithms including lazy clause generation, SAT-based propagation, and linear programming relaxation to explore the solution space efficiently.
+
+The system handles the inherent complexity of university scheduling by managing multiple types of constraints simultaneously. Hard constraints, such as preventing teacher conflicts and ensuring credit hour requirements are met, must be satisfied for any valid solution. Soft constraints, such as minimizing gaps in student schedules and balancing teacher workloads, are optimized through a weighted objective function. This dual-constraint approach allows the system to find practical solutions even in highly constrained scenarios.
+
+One of the key innovations in this system is its ability to handle heterogeneous scheduling requirements across different departments. Engineering departments may require morning laboratory sessions to maximize equipment utilization, while other departments may prefer afternoon labs. The system accommodates these preferences through configurable batch-level and section-level settings, allowing each academic unit to maintain its preferred scheduling patterns while still ensuring university-wide resource coordination.
+
+\subsection{Key Features}
+
+The system provides comprehensive functionality for academic scheduling through several integrated components. The automated scheduling engine can generate complete timetables for multiple departments in under 60 seconds, processing hundreds of assignments and thousands of potential slot combinations. This rapid generation time is achieved through efficient constraint propagation and intelligent search strategies that prune infeasible regions of the solution space early in the solving process.
+
+Multi-department coordination is handled seamlessly, with the system managing shared resources such as teachers who teach across departments and common facilities like laboratories. The constraint satisfaction engine enforces strict zero-clash policies, ensuring that no teacher, room, or student section is double-booked at any time. This is particularly challenging when teachers are engaged by multiple departments, as their schedules must be coordinated across all their assignments.
+
+The system offers extensive configuration options to accommodate diverse scheduling requirements. Morning laboratory sessions can be enforced for specific batches, consecutive lecture blocks can be scheduled for subjects requiring extended class periods, and custom teacher restrictions can be defined for unavailable time slots. These configurations are managed through an intuitive web interface that allows administrators to adjust settings without requiring technical expertise.
+
+Real-time monitoring capabilities provide visibility into ongoing classes through a dashboard interface, while public access features allow students and faculty to view published timetables without authentication. This transparency improves communication and reduces administrative overhead associated with schedule distribution.
+
+\section{System Architecture}
+
+The system architecture follows a modern three-tier design pattern, separating presentation, business logic, and data persistence layers. This architectural approach provides several advantages: it enables independent scaling of components, facilitates maintenance and updates, and allows for technology substitution without affecting other layers. The architecture is designed to be cloud-native, supporting containerized deployment through Docker, which ensures consistency across development, testing, and production environments.
+
+The presentation layer is implemented as a single-page application (SPA) using React, providing a responsive and interactive user interface. The business logic layer is built with FastAPI, a modern Python web framework that provides automatic API documentation, request validation, and asynchronous request handling. The data persistence layer uses PostgreSQL, a robust relational database management system that provides ACID guarantees and supports complex queries efficiently.
+
+Communication between layers follows RESTful principles, with JSON as the data interchange format. Authentication is handled through JWT (JSON Web Tokens), which allows stateless authentication and supports distributed deployments. The solver component, which generates timetables, is tightly integrated with the business logic layer and operates as a synchronous process during timetable generation requests.
+
+\subsection{Technology Stack}
+
+\subsubsection{Backend}
+\begin{itemize}
+    \item \textbf{Framework}: FastAPI (Python 3.11)
+    \item \textbf{Database}: PostgreSQL 15
+    \item \textbf{ORM}: SQLAlchemy 2.0
+    \item \textbf{Solver}: Google OR-Tools CP-SAT
+    \item \textbf{Authentication}: JWT-based token system
+\end{itemize}
+
+\subsubsection{Frontend}
+\begin{itemize}
+    \item \textbf{Framework}: React 18 with Vite
+    \item \textbf{Routing}: React Router v6
+    \item \textbf{Styling}: TailwindCSS 3
+    \item \textbf{Icons}: React Icons (Heroicons)
+    \item \textbf{HTTP Client}: Axios
+\end{itemize}
+
+\subsubsection{Deployment}
+\begin{itemize}
+    \item \textbf{Containerization}: Docker \& Docker Compose
+    \item \textbf{Web Server}: Nginx (frontend proxy)
+    \item \textbf{Application Server}: Uvicorn (ASGI)
+    \item \textbf{Production}: Contabo VPS (Ubuntu 22.04)
+\end{itemize}
+
+
+\subsection{System Components Diagram}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=2cm]
+    % Frontend
+    \node[draw, rectangle, minimum width=3cm, minimum height=1cm, fill=blue!20] (frontend) {React Frontend};
+    
+    % API Gateway
+    \node[draw, rectangle, minimum width=3cm, minimum height=1cm, fill=green!20, below of=frontend] (api) {FastAPI Backend};
+    
+    % Database
+    \node[draw, rectangle, minimum width=2.5cm, minimum height=1cm, fill=yellow!20, below left of=api, xshift=-1cm] (db) {PostgreSQL};
+    
+    % Solver
+    \node[draw, rectangle, minimum width=2.5cm, minimum height=1cm, fill=red!20, below right of=api, xshift=1cm] (solver) {OR-Tools Solver};
+    
+    % Arrows
+    \draw[->] (frontend) -- (api) node[midway, right] {HTTP/REST};
+    \draw[<->] (api) -- (db) node[midway, above left] {SQLAlchemy};
+    \draw[->] (api) -- (solver) node[midway, above right] {CP-SAT};
+\end{tikzpicture}
+\caption{High-Level System Architecture}
+\end{figure}
+
+\section{Database Schema}
+
+\subsection{Core Entities}
+
+The database schema represents the foundational data model that captures all aspects of the university's academic structure, scheduling requirements, and generated timetables. The design follows principles of relational database normalization to minimize redundancy while maintaining referential integrity through foreign key constraints. The schema is organized into three logical groups: academic structure entities that represent the organizational hierarchy of the university, assignment management entities that capture teaching responsibilities, and timetable output entities that store generated schedules.
+
+The academic structure forms a hierarchical organization starting from departments at the top level, which contain batches of students organized by admission year. Each batch is further divided into sections, which represent the actual groups of students that attend classes together. This hierarchical structure allows for flexible organization while maintaining clear relationships between entities. Subjects are defined at the department level and specify the theoretical and practical components of each course, while teachers are associated with their home departments but can be engaged by other departments for cross-departmental teaching.
+
+\subsubsection{Academic Structure}
+
+The academic structure entities form the backbone of the system's organizational model. Departments represent the major academic divisions within the university, such as Civil Engineering, Computer Science, or Electrical Engineering. Each department maintains its own curriculum, faculty, and student cohorts. The department entity serves as the primary organizational unit for access control, with program administrators having authority over their respective departments.
+
+Batches represent cohorts of students who entered the university in the same year and are progressing through the curriculum together. Each batch is associated with a specific department and has a current semester number that indicates their progress through the degree program. Batches also carry configuration settings for scheduling preferences, such as whether laboratory sessions should be scheduled in morning time slots.
+
+Sections are the finest granularity of student organization, representing the actual groups that attend classes together. In departments with large student populations, a single batch may be divided into multiple sections (typically labeled A, B, C, etc.) to keep class sizes manageable. Each section is assigned a default classroom where most of their theory classes will be held, though this can be overridden for specific classes if needed.
+
+Subjects define the courses offered by each department, specifying both the theoretical and laboratory components. The credit hour system distinguishes between theory credits (where each credit represents one hour of lecture per week) and lab credits (where each credit represents three hours of laboratory work per week). This distinction is crucial for scheduling, as laboratory sessions require longer contiguous time blocks and specialized facilities.
+
+Teachers are the faculty members who deliver instruction. Each teacher is associated with a home department and has a designation (Professor, Associate Professor, Lecturer, etc.) that determines their maximum allowable contact hours per week. Some teachers are designated as lab engineers, who specialize in supervising laboratory sessions. The system also tracks whether teachers are authorized to teach consecutive classes, which is important for subjects that require extended instructional periods.
+
+Rooms represent the physical spaces where classes are held. The system distinguishes between regular classrooms and laboratory facilities, as these have different scheduling requirements and availability patterns. Rooms can be designated as department-specific or shared across the university, affecting their allocation priority during timetable generation.
+
+\subsubsection{Assignment Management}
+
+The assignment management subsystem bridges the gap between the static academic structure and the dynamic scheduling process. Assignment sessions provide temporal organization, grouping assignments that should be scheduled together for a particular academic term. This allows the university to maintain multiple active sessions simultaneously, such as separate sessions for fall and spring semesters, or for different academic years.
+
+Assignments represent the fundamental scheduling units: the binding of a subject to a teacher and a set of student sections. Each assignment specifies not only which teacher will teach which subject to which sections, but also includes scheduling preferences such as whether lectures should be consecutive and which laboratory engineer should supervise lab sessions. Assignments can span multiple sections when classes are combined, which is common for elective courses or specialized subjects with low enrollment.
+
+The teacher-department engagement mechanism allows for flexible resource sharing across departmental boundaries. While each teacher has a home department, they can be engaged by other departments to teach specific courses. This engagement is tracked separately to ensure proper workload accounting and to prevent scheduling conflicts when a teacher has responsibilities in multiple departments. The engagement system is particularly important in universities where specialized expertise may be concentrated in one department but needed across multiple programs.
+
+\subsubsection{Timetable Output}
+
+The timetable output entities capture the results of the scheduling process. A timetable represents a complete schedule for one or more departments, generated at a specific point in time with specific configuration parameters. Each timetable has a status (generated, active, or archived) that indicates its current role in the system. Only one timetable per department is typically active at a time, representing the official schedule that students and faculty should follow.
+
+Timetable slots are the individual entries in a schedule, each representing a single class period. A slot specifies the day and time, the section attending the class, the subject being taught, the teacher delivering instruction, and the room where the class will be held. For laboratory sessions, slots also include the lab engineer who will supervise the session. The granularity of slots allows for precise representation of the schedule while maintaining flexibility for manual adjustments if needed.
+
+\subsubsection{Configuration}
+
+The configuration subsystem provides the flexibility needed to accommodate diverse scheduling requirements and constraints. Teacher restrictions allow faculty members to specify time slots when they are unavailable due to other commitments, such as administrative duties, research activities, or teaching at other institutions. These restrictions are treated as hard constraints during timetable generation, ensuring that teachers are never scheduled during their unavailable periods.
+
+Schedule configurations are section-specific settings that control scheduling preferences for particular student groups. The most important configuration option is the "no gaps" preference, which when enabled, instructs the solver to generate compact schedules without idle periods between classes. Sections can also specify preferred days for morning laboratory sessions, allowing different sections within the same batch to have different scheduling patterns if needed.
+
+Global configurations define system-wide parameters that affect all timetable generation operations. These include the time grid structure (start time, break times, number of slots per day), solver parameters (timeout, penalty weights), and institutional rules (such as whether Friday laboratories are permitted). Global configurations provide a centralized location for system administrators to adjust scheduling policies without modifying code.
+
+The user management system implements role-based access control, defining who can perform which operations within the system. Users are assigned roles (super admin, program admin, teacher, clerk) that determine their permissions. Program administrators have full control over their department's data but cannot access other departments, while super administrators have unrestricted access across the entire system. Teachers can view their own schedules and assignments but cannot modify scheduling data.
+
+
+\subsection{Entity Relationship Model}
+
+The entity relationship model defines how different entities in the database are connected through foreign key relationships. These relationships enforce referential integrity and enable efficient querying of related data. Understanding these relationships is crucial for both database design and application development, as they determine how data flows through the system and what operations are permitted.
+
+The hierarchical nature of the academic structure is reflected in the one-to-many relationships between departments, batches, and sections. A department can have multiple batches (one for each admission year), and each batch can have multiple sections (for dividing large student populations). This hierarchy allows for flexible organization while maintaining clear ownership and access control boundaries.
+
+Assignments represent many-to-one relationships with subjects, teachers, and batches, but have a many-to-many relationship with sections through the section\_ids array field. This design choice reflects the reality that a single assignment (one teacher teaching one subject) may serve multiple sections simultaneously, particularly for elective courses or combined classes. The array field provides flexibility while avoiding the need for a separate junction table.
+
+Timetable slots connect to nearly every other entity in the system, as they represent the concrete realization of the schedule. Each slot references a timetable (indicating which schedule it belongs to), a section (indicating which students attend), a subject (indicating what is being taught), a teacher (indicating who is teaching), and a room (indicating where the class is held). This rich set of relationships allows for comprehensive querying and reporting on schedule data.
+
+\subsubsection{Key Relationships}
+\begin{itemize}
+    \item Department $\rightarrow$ Batch (1:N): Each department contains multiple student cohorts
+    \item Batch $\rightarrow$ Section (1:N): Each batch is divided into one or more sections
+    \item Subject $\rightarrow$ Department (N:1): Subjects belong to specific departments
+    \item Teacher $\rightarrow$ Department (N:1): Teachers have a home department
+    \item Assignment $\rightarrow$ Subject, Teacher, Batch (N:1 each): Assignments bind these entities
+    \item Assignment $\rightarrow$ Sections (N:M): Assignments can serve multiple sections
+    \item TimetableSlot $\rightarrow$ Timetable, Section, Subject, Teacher, Room (N:1 each): Slots reference all scheduling entities
+\end{itemize}
+
+\section{User Roles and Permissions}
+
+\subsection{Role Hierarchy}
+
+The system implements a comprehensive role-based access control (RBAC) model that balances security, flexibility, and usability. The role hierarchy is designed to reflect the organizational structure of a typical university, where different stakeholders have different responsibilities and information needs. At the top of the hierarchy, super administrators have unrestricted access to all system functions and data across all departments. This role is typically assigned to IT staff or senior academic administrators who are responsible for system-wide configuration and oversight.
+
+Program administrators represent the next level in the hierarchy, with full control over their respective departments but no access to other departments' data. This departmental isolation ensures that each academic unit can manage its own scheduling independently while preventing unauthorized access to sensitive information from other departments. Program administrators can create and modify teachers, subjects, assignments, and restrictions within their department, and can generate timetables for their student sections.
+
+Clerks and teachers represent operational roles with more limited permissions. Clerks can perform data entry tasks such as creating teachers and subjects, but cannot modify critical configuration settings or generate timetables. Teachers can view their own schedules and assignments but have read-only access to most system data. This graduated permission structure ensures that users can perform their required tasks while preventing accidental or unauthorized modifications to important data.
+
+The public role represents unauthenticated users who access the system to view published timetables and faculty information. Public access is intentionally limited to read-only operations on published data, ensuring that sensitive information such as teacher restrictions or draft timetables remains confidential while still providing transparency for students and other stakeholders.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textbf{Role} & \textbf{Permissions} \\ \midrule
+Super Admin & Full system access across all departments, manage global settings, configure system parameters, create and delete departments \\
+Program Admin & Full control within assigned department: manage teachers, subjects, assignments, restrictions, generate timetables, configure department settings \\
+Clerk & Data entry within department: create and edit teachers, subjects, assignments; cannot delete data or generate timetables \\
+Teacher & View own schedule, assignments, and student sections; read-only access to department data \\
+Lab Engineer & View lab schedules and assigned sections; read-only access to laboratory-related data \\
+Public & View published timetables and faculty directory; no authentication required; read-only access \\ \bottomrule
+\end{tabular}
+\caption{User Roles and Access Levels}
+\end{table}
+
+\section{User Workflow Guide}
+
+The user workflow guide provides step-by-step instructions for common tasks in the system, organized by user role and objective. These workflows are designed to be followed sequentially when setting up a new system, as each step builds upon the data created in previous steps. However, once the initial setup is complete, most workflows can be performed independently as needed for ongoing maintenance and updates.
+
+The workflows are presented in a logical order that reflects the dependencies between different data entities. For example, departments must be created before batches, batches before sections, and all of these before assignments can be defined. This ordering ensures that users always have the necessary prerequisite data available when performing each task.
+
+\subsection{Initial Setup (Super Admin)}
+
+The initial setup process establishes the foundational data structures that all other system operations depend upon. This process is typically performed once when the system is first deployed, though individual steps may be repeated as the university's organizational structure evolves. Super administrators should complete these steps carefully, as errors in the foundational data can propagate throughout the system and may be difficult to correct later.
+
+\subsubsection{Step 1: Create Departments}
+
+Departments represent the major academic divisions within the university and serve as the primary organizational unit for access control and data management. Each department will have its own program administrator who manages scheduling for that unit. The department code should be a short, memorable identifier (typically 2-4 characters) that will be used throughout the system to reference the department.
+
+\begin{enumerate}
+    \item Navigate to the Departments page from the main menu
+    \item Click the "Add Department" button to open the creation dialog
+    \item Enter a unique department code (e.g., "CE" for Civil Engineering, "CS" for Computer Science)
+    \item Enter the full department name for display purposes
+    \item Save the department to add it to the system
+\end{enumerate}
+
+The department code will be used as a prefix for batch identifiers (e.g., "22CE" for the 2022 Civil Engineering batch) and should be chosen to be intuitive and unambiguous. Once created, departments cannot be deleted if they have associated data, so codes should be chosen carefully.
+
+\subsubsection{Step 2: Create Batches}
+
+Batches represent cohorts of students who entered the university in the same year and are progressing through the curriculum together. Each batch is associated with a specific department and has a current semester number that indicates their progress. Batches also carry configuration settings that affect how their classes are scheduled, particularly regarding laboratory session timing.
+
+\begin{enumerate}
+    \item Navigate to the Departments page and select the Batches tab
+    \item Click "Add Batch" to open the batch creation dialog
+    \item Select the department this batch belongs to
+    \item Enter the admission year (e.g., 22 for 2022, 23 for 2023)
+    \item Set the current semester number (1-8, indicating progress through the degree program)
+    \item Configure morning lab preferences if applicable:
+    \begin{itemize}
+        \item \textbf{Mode}: Select "strict" to require all labs in morning, "prefer" for soft preference, or "count" to specify an exact number
+        \item \textbf{Days}: Select which days of the week (Monday-Thursday) should have morning labs
+        \item \textbf{Count}: If using "count" mode, specify how many labs per week should be in morning slots
+    \end{itemize}
+    \item Save the batch to add it to the system
+\end{enumerate}
+
+The morning lab configuration is particularly important for engineering departments, where laboratory equipment utilization and safety considerations may require specific scheduling patterns. The "strict" mode ensures that all laboratory sessions for the batch occur in morning time slots, while "prefer" mode treats morning labs as a soft constraint that can be violated if necessary to achieve a feasible schedule.
+
+\subsubsection{Step 3: Create Sections}
+\begin{enumerate}
+    \item Navigate to \texttt{Sections} tab
+    \item Click \texttt{Add Section}
+    \item Select batch
+    \item Enter section name (A, B, C, etc.)
+    \item Assign default classroom
+    \item Save section
+\end{enumerate}
+
+
+\subsubsection{Step 4: Create Rooms}
+\begin{enumerate}
+    \item Go to \texttt{Rooms} page
+    \item Click \texttt{Add Room}
+    \item Enter room name (e.g., "CR-01" for classroom, "Lab-1" for laboratory)
+    \item Set capacity (optional)
+    \item Check \texttt{Is Lab} for laboratory rooms
+    \item Select department (or leave blank for global rooms)
+    \item Save room
+\end{enumerate}
+
+\textbf{Default Setup}: System creates 12 classrooms (CR-01 to CR-12) and 6 labs (Lab-1 to Lab-6) during initial seeding.
+
+\subsubsection{Step 5: Add Teachers}
+\begin{enumerate}
+    \item Navigate to \texttt{Teachers} page
+    \item Click \texttt{Add Teacher} or \texttt{Bulk Upload}
+    \item For individual entry:
+    \begin{itemize}
+        \item Enter full name with title (e.g., "Prof. Dr. Riaz Bhanbhro")
+        \item Select designation (Professor, Associate Professor, Lecturer, etc.)
+        \item Set max contact hours (auto-filled based on designation)
+        \item Check \texttt{Is Lab Engineer} if applicable
+        \item Enable \texttt{Allow Consecutive} for back-to-back classes
+        \item Set \texttt{Max Consecutive Classes} (2, 3, or 4)
+        \item Optionally create user account for portal access
+    \end{itemize}
+    \item For bulk upload:
+    \begin{itemize}
+        \item Download Excel template
+        \item Fill in: name, designation, is\_lab\_engineer (0/1)
+        \item Upload file
+        \item System auto-creates user accounts
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Max Contact Hours by Designation}:
+\begin{itemize}
+    \item Professor: 6 hours/week
+    \item Associate Professor: 9 hours/week
+    \item Assistant Professor: 12 hours/week
+    \item Lecturer: 12 hours/week
+    \item Lab Engineer: 15 hours/week
+\end{itemize}
+
+\subsubsection{Step 6: Add Subjects}
+\begin{enumerate}
+    \item Go to \texttt{Subjects} page
+    \item Click \texttt{Add Subject}
+    \item Enter subject code (e.g., "CE-101")
+    \item Enter full name
+    \item Set theory credits (0-3)
+    \item Set lab credits (0-1, where 1 lab credit = 3 contact hours)
+    \item Select semester (1-8)
+    \item Select department
+    \item Save subject
+\end{enumerate}
+
+\textbf{Credit System}:
+\begin{itemize}
+    \item Theory: 1 credit = 1 hour/week on different days
+    \item Lab: 1 credit = 3 consecutive hours/week in one block
+    \item Example: 3+1 subject = 3 theory hours + 3 lab hours = 6 contact hours
+\end{itemize}
+
+
+\subsection{Assignment Management (Program Admin)}
+
+\subsubsection{Step 1: Create Assignment Session}
+\begin{enumerate}
+    \item Navigate to \texttt{Assignments} page
+    \item Click \texttt{Manage Sessions}
+    \item Click \texttt{Create Session}
+    \item Enter session name (e.g., "Fall 2025", "Spring 2026")
+    \item Save session
+\end{enumerate}
+
+\textbf{Note}: Sessions are university-wide and shared across all departments.
+
+\subsubsection{Step 2: Create Assignments}
+\begin{enumerate}
+    \item Select active session from dropdown
+    \item Click \texttt{Add Assignment}
+    \item Select subject
+    \item Select theory teacher
+    \item Select lab engineer (if subject has lab component)
+    \item Select lab room (if applicable)
+    \item Select batch
+    \item Select sections (can select multiple for combined classes)
+    \item Set consecutive lectures (0, 2, 3, or 4):
+    \begin{itemize}
+        \item 0: Normal scheduling (theory on different days)
+        \item 2: Two consecutive 1-hour slots
+        \item 3: Three consecutive 1-hour slots
+        \item 4: Four consecutive 1-hour slots
+    \end{itemize}
+    \item Enter combination ID (optional, for shared slots across sections)
+    \item Save assignment
+\end{enumerate}
+
+\subsubsection{Step 3: Bulk Import (Optional)}
+\begin{enumerate}
+    \item Click \texttt{Import from Excel}
+    \item Download template
+    \item Fill in assignment data
+    \item Upload file
+    \item System matches teachers/subjects using fuzzy matching
+    \item Review and confirm matches
+    \item Import assignments
+\end{enumerate}
+
+\subsection{Restriction Configuration}
+
+\subsubsection{Teacher Restrictions}
+\begin{enumerate}
+    \item Navigate to \texttt{Restrictions} page
+    \item Select \texttt{Teacher Restrictions} tab
+    \item Select teacher from dropdown
+    \item Click on time slots to mark as unavailable
+    \item Restrictions are shown in red
+    \item Click \texttt{Save Restrictions}
+\end{enumerate}
+
+\textbf{Use Cases}:
+\begin{itemize}
+    \item Teacher has administrative duties on specific days/times
+    \item Teacher teaches at another institution
+    \item Personal commitments (medical appointments, etc.)
+\end{itemize}
+
+\subsubsection{Section Schedule Configuration}
+\begin{enumerate}
+    \item Go to \texttt{Restrictions} $\rightarrow$ \texttt{Section Config} tab
+    \item Select section
+    \item Configure preferences:
+    \begin{itemize}
+        \item \textbf{No Gaps}: Enforce continuous schedule (no free periods)
+        \item \textbf{Morning Lab Days}: Select days for morning labs
+    \end{itemize}
+    \item Save configuration
+\end{enumerate}
+
+
+\subsection{Global Settings Configuration}
+
+\subsubsection{Time Grid Settings}
+\begin{enumerate}
+    \item Navigate to \texttt{Settings} page
+    \item Configure time parameters:
+    \begin{itemize}
+        \item \textbf{Start Time}: First class start time (default: 08:30)
+        \item \textbf{Break Start}: Break start time (default: 10:30)
+        \item \textbf{Break End}: Break end time (default: 11:00)
+        \item \textbf{Break Slot}: Slot index for break (default: 2)
+        \item \textbf{Max Slots Per Day}: Monday-Thursday (default: 8)
+        \item \textbf{Max Slots Friday}: Friday slots (default: 5)
+        \item \textbf{Friday Has Break}: Enable/disable Friday break
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Solver Configuration}
+\begin{enumerate}
+    \item Set solver parameters:
+    \begin{itemize}
+        \item \textbf{Solver Timeout}: Maximum solving time in seconds (default: 60)
+        \item \textbf{Gap Penalty}: Cost for gaps in schedule (default: 5,000,000)
+        \item \textbf{Workload Penalty}: Cost for uneven teacher load (default: 2,000,000)
+        \item \textbf{Early Slot Penalty}: Cost for early morning slots (default: 10)
+        \item \textbf{Lab Priority Multiplier}: Priority boost for labs (default: 50)
+        \item \textbf{Strict Teacher Restrictions}: Enforce hard restrictions
+        \item \textbf{Compact Morning}: Prefer morning-heavy schedules
+    \end{itemize}
+    \item Save settings
+\end{enumerate}
+
+\section{Timetable Generation Process}
+
+\subsection{Pre-Generation Checklist}
+
+Before generating a timetable, ensure:
+\begin{enumerate}
+    \item All departments, batches, and sections are created
+    \item All teachers are added with correct designations
+    \item All subjects are defined with proper credit hours
+    \item All rooms (classrooms and labs) are available
+    \item Assignment session is created
+    \item All assignments are entered for the session
+    \item Teacher restrictions are configured (if any)
+    \item Section preferences are set (if any)
+\end{enumerate}
+
+\subsection{Generation Steps}
+
+\subsubsection{Step 1: Navigate to Timetable Page}
+\begin{enumerate}
+    \item Go to \texttt{Timetables} page
+    \item Click \texttt{Generate New Timetable}
+\end{enumerate}
+
+\subsubsection{Step 2: Configure Generation Parameters}
+\begin{enumerate}
+    \item Enter timetable name (e.g., "Fall 2025 - CE Department")
+    \item Enter semester info (optional description)
+    \item Select assignment session
+    \item Select target batches (or leave empty for all batches in session)
+    \item Configure advanced options:
+    \begin{itemize}
+        \item \textbf{Allow Friday Labs}: Enable lab scheduling on Friday
+        \item \textbf{Lab is Last}: No theory classes after lab on same day
+        \item \textbf{Prefer Early Dismissal}: Minimize afternoon slots
+    \end{itemize}
+    \item Click \texttt{Generate}
+\end{enumerate}
+
+
+\subsubsection{Step 3: Monitor Generation}
+\begin{enumerate}
+    \item System displays progress indicator
+    \item Solver runs for up to 60 seconds (configurable)
+    \item Upon completion, one of three outcomes:
+    \begin{itemize}
+        \item \textbf{OPTIMAL}: Perfect solution found
+        \item \textbf{FEASIBLE}: Valid solution found (may not be optimal)
+        \item \textbf{INFEASIBLE}: No valid solution exists
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Step 4: Review Generated Timetable}
+\begin{enumerate}
+    \item System redirects to timetable view
+    \item Review schedule for each section
+    \item Check teacher workloads
+    \item Verify room assignments
+    \item Confirm no clashes exist
+\end{enumerate}
+
+\subsubsection{Step 5: Publish or Regenerate}
+\begin{enumerate}
+    \item If satisfied:
+    \begin{itemize}
+        \item Click \texttt{Activate} to make timetable live
+        \item Timetable becomes visible to students and teachers
+    \end{itemize}
+    \item If adjustments needed:
+    \begin{itemize}
+        \item Modify assignments or restrictions
+        \item Click \texttt{Delete} to remove timetable
+        \item Generate new timetable with updated parameters
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Troubleshooting Infeasible Solutions}
+
+If solver returns INFEASIBLE, check:
+
+\subsubsection{Common Causes}
+\begin{enumerate}
+    \item \textbf{Insufficient Time Slots}:
+    \begin{itemize}
+        \item Total required hours exceed available slots
+        \item Solution: Reduce assignments or increase max slots per day
+    \end{itemize}
+    
+    \item \textbf{Over-Restricted Teachers}:
+    \begin{itemize}
+        \item Too many unavailable slots for key teachers
+        \item Solution: Remove some restrictions or reassign subjects
+    \end{itemize}
+    
+    \item \textbf{Shared Teacher Conflicts}:
+    \begin{itemize}
+        \item Teacher assigned to multiple batches with conflicting constraints
+        \item Solution: Use different teachers or relax no-gaps constraint
+    \end{itemize}
+    
+    \item \textbf{Lab Room Shortage}:
+    \begin{itemize}
+        \item Not enough lab rooms for simultaneous lab sessions
+        \item Solution: Add more lab rooms or stagger lab times
+    \end{itemize}
+    
+    \item \textbf{Strict Morning Lab Mode}:
+    \begin{itemize}
+        \item Morning lab requirement conflicts with other constraints
+        \item Solution: Change to "prefer" mode or reduce morning lab count
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Diagnostic Steps}
+\begin{enumerate}
+    \item Check solver output message for specific constraint violations
+    \item Review teacher workload distribution
+    \item Verify room availability
+    \item Examine restriction patterns
+    \item Test with relaxed constraints (disable no-gaps, allow Friday labs)
+\end{enumerate}
+
+
+\section{Mathematical Formulation}
+
+\subsection{Problem Definition}
+
+The university timetabling problem can be formally characterized as a multi-objective constraint satisfaction and optimization problem. Given a set of course assignments, each specifying a subject, teacher, and student sections, the objective is to determine a mapping from these assignments to specific time slots (defined by day and period) such that all hard constraints are satisfied and soft constraints are optimized according to specified priorities.
+
+This problem belongs to the class of NP-hard combinatorial optimization problems, meaning that no polynomial-time algorithm is known to exist for finding optimal solutions in the general case. The computational complexity arises from the exponential growth of the solution space with problem size: for $n$ assignments and $m$ available time slots, there are potentially $m^n$ possible complete assignments to evaluate. However, the structure of the problem allows for significant pruning of this search space through constraint propagation techniques.
+
+The formulation presented here extends classical timetabling models by incorporating several practical considerations specific to university environments. These include the distinction between theory and laboratory sessions (which have different duration and scheduling requirements), the concept of consecutive lecture blocks for subjects requiring extended class periods, and the ability to specify morning laboratory preferences at the batch level. Additionally, the model handles cross-departmental teaching assignments, where a single teacher may be responsible for courses in multiple departments.
+
+The mathematical model uses binary decision variables to represent scheduling decisions, with constraints expressed as linear inequalities and logical implications. This formulation is well-suited to modern constraint programming solvers, which can exploit the problem structure to find solutions efficiently. The objective function combines multiple soft constraints through weighted summation, allowing administrators to adjust the relative importance of different scheduling preferences.
+
+\subsection{Sets and Indices}
+
+\begin{align*}
+D &= \{0, 1, 2, 3, 4\} && \text{Days (Mon-Fri)} \\
+S_d &= \text{Schedulable slots on day } d && \\
+&= \begin{cases}
+\{0,1,3,4,5,6,7\} & d \in \{0,1,2,3\} \text{ (Mon-Thu, slot 2 = break)} \\
+\{0,1,2,3,4\} & d = 4 \text{ (Friday, no break)}
+\end{cases} \\
+T &= \text{Set of all teachers} \\
+R &= \text{Set of all rooms} \\
+C &= \text{Set of all sections} \\
+A &= \text{Set of all assignments} \\
+\end{align*}
+
+\subsection{Parameters}
+
+For each assignment $a \in A$:
+\begin{align*}
+h_a^{theory} &= \text{Theory credit hours (0-3)} \\
+h_a^{lab} &= \text{Lab credit hours (0-1, where 1 = 3 contact hours)} \\
+t_a &= \text{Theory teacher for assignment } a \\
+l_a &= \text{Lab engineer for assignment } a \\
+C_a &\subseteq C = \text{Sections assigned to } a \\
+r_a &= \text{Default room for assignment } a \\
+\end{align*}
+
+For each teacher $t \in T$:
+\begin{align*}
+H_t^{max} &= \text{Maximum contact hours per week} \\
+R_t &\subseteq D \times S = \text{Restricted (day, slot) pairs} \\
+\end{align*}
+
+\subsection{Decision Variables}
+
+\subsubsection{Theory Variables}
+For each assignment $a$, section $c \in C_a$, day $d \in D$, slot $s \in S_d$:
+\begin{equation}
+x_{a,c,d,s} \in \{0, 1\} = \begin{cases}
+1 & \text{if theory class for } a \text{ in section } c \text{ at } (d,s) \\
+0 & \text{otherwise}
+\end{cases}
+\end{equation}
+
+\subsubsection{Lab Variables}
+For each assignment $a$ with $h_a^{lab} > 0$, section $c \in C_a$, day $d \in D$, start slot $s$:
+\begin{equation}
+y_{a,c,d,s} \in \{0, 1\} = \begin{cases}
+1 & \text{if lab for } a \text{ in section } c \text{ starts at } (d,s) \\
+0 & \text{otherwise}
+\end{cases}
+\end{equation}
+
+Note: Lab occupies 3 consecutive slots $[s, s+1, s+2]$.
+
+
+\subsection{Hard Constraints}
+
+\subsubsection{Theory Credit Requirement}
+Each assignment must schedule exactly $h_a^{theory}$ theory hours on different days:
+\begin{equation}
+\sum_{c \in C_a} \sum_{d \in D} \sum_{s \in S_d} x_{a,c,d,s} = h_a^{theory} \quad \forall a \in A
+\end{equation}
+
+\subsubsection{Theory on Different Days}
+Theory classes must be on distinct days:
+\begin{equation}
+\sum_{s \in S_d} x_{a,c,d,s} \leq 1 \quad \forall a \in A, c \in C_a, d \in D
+\end{equation}
+
+\subsubsection{Lab Credit Requirement}
+Each assignment with lab must schedule exactly one 3-hour lab block:
+\begin{equation}
+\sum_{c \in C_a} \sum_{d \in D} \sum_{s \in L_d} y_{a,c,d,s} = h_a^{lab} \quad \forall a \in A \text{ with } h_a^{lab} > 0
+\end{equation}
+where $L_d$ is the set of valid lab start positions on day $d$.
+
+\subsubsection{Section Clash Prevention}
+No section can have multiple classes at the same time:
+\begin{align}
+&\sum_{a: c \in C_a} x_{a,c,d,s} + \sum_{a: c \in C_a} \sum_{s' \in [s-2, s]} \mathbb{1}_{s \in [s', s'+2]} \cdot y_{a,c,d,s'} \leq 1 \\
+&\quad \forall c \in C, d \in D, s \in S_d
+\end{align}
+
+\subsubsection{Teacher Clash Prevention}
+No teacher can teach multiple classes simultaneously:
+\begin{align}
+&\sum_{a: t_a = t} \sum_{c \in C_a} x_{a,c,d,s} \leq 1 \quad \forall t \in T, d \in D, s \in S_d \\
+&\sum_{a: l_a = t} \sum_{c \in C_a} \sum_{s' \in [s-2, s]} \mathbb{1}_{s \in [s', s'+2]} \cdot y_{a,c,d,s'} \leq 1 \quad \forall t \in T, d \in D, s \in S_d
+\end{align}
+
+\subsubsection{Room Clash Prevention}
+No room can host multiple classes simultaneously:
+\begin{align}
+&\sum_{a: r_a = r} \sum_{c \in C_a} x_{a,c,d,s} \leq 1 \quad \forall r \in R, d \in D, s \in S_d \\
+&\sum_{a: r_a^{lab} = r} \sum_{c \in C_a} \sum_{s' \in [s-2, s]} \mathbb{1}_{s \in [s', s'+2]} \cdot y_{a,c,d,s'} \leq 1 \quad \forall r \in R, d \in D, s \in S_d
+\end{align}
+
+\subsubsection{Teacher Restrictions}
+Teachers cannot be assigned to restricted slots:
+\begin{equation}
+x_{a,c,d,s} = 0 \quad \forall a \in A, c \in C_a, (d,s) \in R_{t_a}
+\end{equation}
+
+\subsubsection{Break Slot Enforcement}
+No classes during break time (slot 2 on Mon-Thu):
+\begin{equation}
+x_{a,c,d,2} = 0 \quad \forall a \in A, c \in C_a, d \in \{0,1,2,3\}
+\end{equation}
+
+Exception: Morning labs can occupy slot 2, but then break shifts to slot 3.
+
+
+\subsection{Soft Constraints and Objective Function}
+
+While hard constraints define the feasibility boundary of the solution space, soft constraints guide the search toward high-quality solutions that meet stakeholder preferences. The objective function aggregates multiple soft constraints through weighted summation, where each weight reflects the relative importance of satisfying that particular constraint. This approach allows for flexible prioritization: administrators can emphasize gap minimization for student convenience, workload balancing for faculty equity, or other objectives based on institutional priorities.
+
+The total penalty to be minimized is expressed as:
+\begin{equation}
+\min Z = Z_{gap} + Z_{workload} + Z_{early} + Z_{lab}
+\end{equation}
+
+Each component of this objective function addresses a specific quality criterion for the generated timetable. The gap penalty discourages fragmented schedules with idle periods between classes, which are inconvenient for students and reduce campus facility utilization. The workload penalty promotes equitable distribution of teaching responsibilities among faculty members, preventing situations where some teachers are overloaded while others are underutilized. The early slot penalty reflects a mild preference for later class times, acknowledging that very early morning classes may have lower attendance. The lab priority component ensures that laboratory sessions, which have more stringent scheduling requirements due to equipment and space constraints, are scheduled before theory classes.
+
+\subsubsection{Gap Penalty}
+
+The gap penalty component addresses one of the most significant quality factors in student schedules: the presence of idle periods between consecutive classes. From a pedagogical perspective, gaps in the schedule can reduce student engagement and learning effectiveness, as students may leave campus during free periods rather than utilizing the time for study or academic activities. From a practical standpoint, gaps force students to remain on campus for extended periods without productive activity, leading to dissatisfaction and reduced quality of life.
+
+Mathematically, the gap penalty is formulated as:
+\begin{align}
+Z_{gap} &= w_{gap} \sum_{c \in C} \sum_{d \in D} G_{c,d} \\
+G_{c,d} &= \text{Number of gaps on day } d \text{ for section } c
+\end{align}
+
+A gap is formally defined as an unscheduled slot that occurs between two scheduled classes on the same day. More precisely, a gap exists at slot $s$ if:
+\begin{equation}
+\text{Gap at slot } s: \quad \exists s_1 < s < s_2 : \text{class at } s_1, s_2 \text{ but not at } s
+\end{equation}
+
+The weight $w_{gap}$ is set to a very high value (default: $5{,}000{,}000$) to reflect the strong preference for continuous schedules. This high weight effectively makes gap minimization a near-hard constraint, meaning the solver will prioritize gap elimination over other soft constraints. In practice, this results in compact schedules where classes are clustered together, allowing students to complete their daily schedule and leave campus earlier.
+
+\subsubsection{Workload Balance Penalty}
+
+Faculty workload distribution is a critical factor in maintaining institutional equity and teacher satisfaction. Unbalanced workloads can lead to burnout among overloaded faculty members and underutilization of available teaching resources. The workload balance penalty encourages the solver to distribute teaching assignments such that each teacher's actual contact hours approximate their designated maximum capacity, which varies by academic rank and appointment type.
+
+The workload penalty is computed as the sum of absolute deviations from target workloads:
+\begin{align}
+Z_{workload} &= w_{workload} \sum_{t \in T} |W_t - H_t^{max}| \\
+W_t &= \sum_{a: t_a = t} \sum_{c \in C_a} \sum_{d \in D} \sum_{s \in S_d} x_{a,c,d,s} + 3 \sum_{a: l_a = t} \sum_{c \in C_a} \sum_{d \in D} \sum_{s \in L_d} y_{a,c,d,s}
+\end{align}
+
+The actual workload $W_t$ for teacher $t$ is calculated by summing all theory hours (each theory slot counts as one contact hour) and laboratory hours (each lab session counts as three contact hours, reflecting the extended duration of laboratory instruction). The factor of 3 for laboratory sessions accounts for the fact that a single lab credit typically corresponds to three contact hours in the schedule.
+
+The default weight $w_{workload} = 2{,}000{,}000$ is set high enough to make workload balancing a significant priority, but lower than the gap penalty to allow some workload imbalance if necessary to achieve gap-free schedules. This prioritization reflects the typical preference hierarchy in academic scheduling: student schedule quality (no gaps) takes precedence over perfect faculty workload distribution.
+
+\subsubsection{Early Slot Penalty}
+Slight preference for later slots (avoid 8:30 AM if possible):
+\begin{align}
+Z_{early} &= w_{early} \sum_{a \in A} \sum_{c \in C_a} \sum_{d \in D} \sum_{s \in S_d} s \cdot x_{a,c,d,s} \\
+&\quad + w_{early} \sum_{a \in A} \sum_{c \in C_a} \sum_{d \in D} \sum_{s \in L_d} s \cdot y_{a,c,d,s}
+\end{align}
+
+Default: $w_{early} = 10$ (very low priority)
+
+\subsubsection{Lab Priority Boost}
+Labs get priority in slot selection (scheduled first):
+\begin{align}
+Z_{lab} &= -w_{lab} \sum_{a \in A} \sum_{c \in C_a} \sum_{d \in D} \sum_{s \in L_d} y_{a,c,d,s}
+\end{align}
+
+Default: $w_{lab} = 50$ (negative = reward for scheduling labs)
+
+\subsection{Special Constraints}
+
+\subsubsection{Consecutive Lectures}
+For assignments with consecutive lecture requirement $n \in \{2, 3, 4\}$:
+\begin{equation}
+\sum_{s \in [s_0, s_0 + n - 1]} x_{a,c,d,s} = n \implies \text{all } n \text{ slots are consecutive}
+\end{equation}
+
+Implemented via auxiliary variables and implication constraints.
+
+\subsubsection{Morning Lab Constraints}
+For batches with morning lab configuration:
+\begin{itemize}
+    \item \textbf{Strict Mode}: Labs MUST start at slot 0 on specified days
+    \begin{equation}
+    y_{a,c,d,0} = 1 \quad \forall a \in A_{batch}, d \in D_{morning}
+    \end{equation}
+    
+    \item \textbf{Prefer Mode}: Labs get cost reduction for morning slots
+    \begin{equation}
+    Z_{lab} \text{ increased for } y_{a,c,d,0} \text{ on } d \in D_{morning}
+    \end{equation}
+    
+    \item \textbf{Count Mode}: Exactly $k$ labs in morning per week
+    \begin{equation}
+    \sum_{a \in A_{batch}} \sum_{c \in C_a} \sum_{d \in D_{morning}} y_{a,c,d,0} = k
+    \end{equation}
+\end{itemize}
+
+
+\subsubsection{No Theory After Lab}
+If enabled, no theory classes after lab on the same day:
+\begin{equation}
+y_{a,c,d,s} = 1 \implies x_{a',c,d,s'} = 0 \quad \forall s' > s + 2, a' \in A
+\end{equation}
+
+\subsubsection{No Friday Labs}
+Default rule: labs cannot be scheduled on Friday:
+\begin{equation}
+y_{a,c,4,s} = 0 \quad \forall a \in A, c \in C_a, s \in L_4
+\end{equation}
+
+Can be overridden with \texttt{allow\_friday\_labs} parameter.
+
+\section{Solver Implementation}
+
+\subsection{CP-SAT Solver Overview}
+
+The computational engine at the heart of the timetabling system is Google OR-Tools' CP-SAT solver, a state-of-the-art constraint programming solver that combines techniques from satisfiability (SAT) solving, constraint programming, and mixed-integer linear programming. This hybrid approach allows the solver to leverage the strengths of multiple paradigms: the efficient conflict analysis and learning mechanisms from SAT solving, the expressive constraint modeling capabilities from constraint programming, and the tight bounds from linear programming relaxations.
+
+The solver operates through several key mechanisms that work synergistically to explore the solution space efficiently:
+
+\textbf{Lazy Clause Generation} is a technique that learns from conflicts encountered during search. When the solver reaches a state where no valid assignment is possible (a conflict), it analyzes the sequence of decisions that led to this conflict and generates a "no-good" clause that prevents the solver from revisiting equivalent failing states. Over time, these learned clauses accumulate, effectively pruning large regions of the search space and dramatically reducing the number of states that need to be explored.
+
+\textbf{SAT-based Propagation} converts high-level constraints into Boolean satisfiability problems, which can be solved using highly optimized SAT solving techniques. This conversion allows the solver to apply powerful propagation algorithms that deduce implied variable assignments from existing constraints. For example, if a teacher is assigned to a class at a particular time, SAT propagation can immediately infer that the teacher cannot be assigned to any other class at that time, eliminating many potential assignments without explicit search.
+
+\textbf{Linear Programming Relaxation} provides bounds on the objective function by solving a relaxed version of the problem where integer variables are allowed to take fractional values. These bounds guide the search by allowing the solver to prune branches that cannot possibly lead to better solutions than the current best. This technique is particularly effective for the workload balancing component of the objective function, where linear programming can quickly identify infeasible workload distributions.
+
+\textbf{Parallel Search} exploits modern multi-core processors by exploring multiple regions of the solution space simultaneously. The solver maintains a portfolio of different search strategies, each running in a separate thread, and shares learned clauses and bounds between threads. This parallelization can significantly reduce solving time, especially for large problem instances where different search strategies may perform well in different regions of the solution space.
+
+\subsection{Algorithm Workflow}
+
+\begin{algorithm}
+\caption{Timetable Generation Algorithm}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Assignments $A$, Teachers $T$, Rooms $R$, Sections $C$
+\State \textbf{Output:} Timetable $TT$ or INFEASIBLE
+
+\State Initialize CP-SAT model $M$
+\State Create decision variables $x_{a,c,d,s}$ and $y_{a,c,d,s}$
+
+\For{each assignment $a \in A$}
+    \State Add theory credit constraints
+    \State Add lab credit constraints (if applicable)
+    \State Add different-days constraints for theory
+\EndFor
+
+\For{each section $c \in C$}
+    \For{each day $d \in D$, slot $s \in S_d$}
+        \State Add section clash prevention constraint
+    \EndFor
+\EndFor
+
+\For{each teacher $t \in T$}
+    \For{each day $d \in D$, slot $s \in S_d$}
+        \State Add teacher clash prevention constraint
+        \If{$(d, s) \in R_t$}
+            \State Add restriction constraint
+        \EndIf
+    \EndFor
+\EndFor
+
+\For{each room $r \in R$}
+    \For{each day $d \in D$, slot $s \in S_d$}
+        \State Add room clash prevention constraint
+    \EndFor
+\EndFor
+
+\State Define objective function $Z = Z_{gap} + Z_{workload} + Z_{early} + Z_{lab}$
+\State Set solver timeout to 60 seconds
+\State $status \gets M.Solve()$
+
+\If{$status \in \{OPTIMAL, FEASIBLE\}$}
+    \State Extract solution from variable assignments
+    \State Create timetable slots in database
+    \State \Return $TT$
+\Else
+    \State \Return INFEASIBLE
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Constraint Propagation}
+
+Constraint propagation is the fundamental mechanism by which the solver reduces the search space without explicit enumeration. The basic principle is to use constraints to deduce information about variable domains: if a constraint cannot be satisfied with certain variable values, those values can be removed from consideration. This process is applied iteratively until no further deductions can be made, resulting in a state where all remaining values in variable domains are locally consistent with the constraints.
+
+The power of constraint propagation lies in its ability to detect infeasibility early and to reduce the branching factor during search. By eliminating inconsistent values before making search decisions, the solver avoids exploring large portions of the search space that cannot lead to valid solutions. In the timetabling context, constraint propagation can deduce, for example, that if a teacher has only one available slot remaining and multiple unscheduled classes, the problem is infeasible without needing to try all possible assignments.
+
+CP-SAT implements several levels of propagation, each with different trade-offs between propagation strength and computational cost:
+
+\subsubsection{Arc Consistency}
+
+Arc consistency is a fundamental propagation technique that ensures local consistency between pairs of variables. For a constraint $C(x_1, x_2, \ldots, x_n)$ involving multiple variables, arc consistency requires that for each variable $x_i$ and each value $v$ in its domain $D(x_i)$, there exists a compatible assignment of values to the other variables that satisfies the constraint.
+
+The arc consistency algorithm operates iteratively:
+\begin{enumerate}
+    \item For each variable $x_i$ in the constraint, examine each value $v \in D(x_i)$
+    \item Check if there exists an assignment to other variables that satisfies $C$ with $x_i = v$
+    \item If no such assignment exists, remove $v$ from $D(x_i)$
+    \item Repeat until no more values can be removed (reaching a fixed point)
+\end{enumerate}
+
+In the timetabling context, arc consistency is particularly effective for clash prevention constraints. For example, consider a constraint that prevents a teacher from being assigned to multiple classes simultaneously. If a teacher is assigned to a class at time slot $(d, s)$, arc consistency immediately removes $(d, s)$ from the domains of all other classes assigned to that teacher, preventing conflicts without search.
+
+\subsubsection{Bounds Propagation}
+
+Bounds propagation is a specialized form of constraint propagation that is particularly efficient for linear constraints. Rather than maintaining the full domain of each variable, bounds propagation tracks only the minimum and maximum possible values, significantly reducing memory requirements and computational cost. This technique is especially effective for constraints involving sums or weighted sums of variables, which are common in scheduling problems.
+
+For a linear constraint of the form $\sum a_i x_i \leq b$, bounds propagation computes:
+\begin{align}
+\text{Lower bound: } & \sum a_i \cdot \min(D(x_i)) \leq b \\
+\text{Upper bound: } & \sum a_i \cdot \max(D(x_i)) \geq b
+\end{align}
+
+If the lower bound exceeds $b$, the constraint cannot be satisfied and the problem is infeasible. If the upper bound is less than $b$, the constraint is already satisfied regardless of the specific values chosen for the variables. In intermediate cases, bounds propagation can tighten variable domains by computing the maximum (or minimum) value each variable can take while still satisfying the constraint.
+
+In the timetabling system, bounds propagation is applied to workload constraints, which limit the total number of contact hours assigned to each teacher. By tracking the minimum and maximum possible workload for each teacher as assignments are made, the solver can detect infeasibility early when a teacher's minimum workload exceeds their capacity, or when the remaining unassigned classes cannot be accommodated within teachers' available capacity.
+
+\subsubsection{Clause Learning}
+
+Clause learning is a powerful technique borrowed from modern SAT solvers that allows the constraint solver to learn from its mistakes. When the solver encounters a conflict—a state where no valid assignment is possible given the current partial solution—it performs conflict analysis to identify the root cause of the failure. This analysis produces a learned clause that captures the essence of the conflict in a compact form, preventing the solver from making the same mistake again.
+
+The clause learning process operates as follows:
+\begin{enumerate}
+    \item When a conflict is detected at a search node, trace back through the implication graph to identify the decisions that led to the conflict
+    \item Identify a minimal set of decisions $\{d_1, d_2, \ldots, d_k\}$ that are sufficient to cause the conflict
+    \item Generate a "no-good" clause: $\neg(d_1 \land d_2 \land \cdots \land d_k)$, which states that this combination of decisions cannot appear in any valid solution
+    \item Add this clause to the constraint model as a new constraint
+    \item Use the learned clause to guide backtracking and future search decisions
+\end{enumerate}
+
+The effectiveness of clause learning stems from its ability to generalize from specific conflicts to broader patterns. A learned clause typically captures a structural property of the problem that applies to many potential solutions, not just the specific path that led to the conflict. Over the course of solving, the accumulation of learned clauses progressively refines the solver's understanding of the problem structure, leading to increasingly efficient search.
+
+In the timetabling context, clause learning is particularly valuable for detecting and avoiding resource conflicts. For example, if the solver learns that assigning three specific classes to the same time slot leads to a conflict (perhaps because they share a teacher or room), it will never attempt this combination again, even if it arrives at a similar state through a different sequence of decisions.
+
+\subsection{Search Strategy}
+
+The search strategy determines the order in which the solver explores the solution space, which can have a dramatic impact on solving time. A good search strategy guides the solver toward promising regions of the solution space while avoiding areas unlikely to contain good solutions. The strategy consists of two main components: variable ordering (which decision to make next) and value ordering (which value to try first for the chosen variable).
+
+\subsubsection{Variable Ordering Heuristics}
+
+Variable ordering heuristics determine which unassigned variable to branch on next. The choice of variable can significantly affect the size of the search tree, as some variables are more constrained than others and making decisions about them early can lead to more effective propagation.
+
+The \textbf{First-Fail} heuristic selects the variable with the smallest remaining domain, based on the principle that highly constrained variables are more likely to cause conflicts and should be addressed early. By making decisions about difficult variables first, the solver can detect infeasibility sooner and avoid wasting time exploring doomed branches. In timetabling, this might correspond to scheduling a class that has very few available time slots due to teacher restrictions or room availability.
+
+The \textbf{Most-Constrained} heuristic chooses the variable that participates in the largest number of unsatisfied constraints. This approach prioritizes variables that have the most impact on other variables, leading to stronger propagation when assignments are made. For timetabling, this might select a teacher who is involved in many assignments, as scheduling one of their classes will constrain the available slots for all their other classes.
+
+The \textbf{Lab-First} heuristic is domain-specific to timetabling and prioritizes laboratory session variables over theory class variables. This prioritization is justified by the observation that labs are typically harder to schedule due to their longer duration (requiring three consecutive slots) and their dependence on specialized facilities. By scheduling labs first, the solver ensures that these difficult-to-place classes are accommodated, with theory classes filling in the remaining slots.
+
+\subsubsection{Value Ordering}
+
+Once a variable has been selected, value ordering determines which value from its domain to try first. Good value ordering can reduce the amount of backtracking required by trying promising values before less promising ones.
+
+The \textbf{Least-Constraining} heuristic selects values that leave the maximum number of options available for other unassigned variables. This approach is based on the principle that preserving flexibility for future decisions reduces the likelihood of reaching dead ends. In timetabling, this might mean preferring time slots that are less popular or less constrained by other assignments.
+
+The \textbf{Objective-Guided} heuristic uses information from the objective function to guide value selection, preferring values that are likely to lead to better solution quality. For example, when scheduling a class, the solver might prefer time slots that reduce gaps in the student schedule or balance teacher workloads more evenly. This heuristic helps the solver find high-quality solutions quickly, even if it doesn't guarantee optimality.
+
+\subsection{Performance Characteristics}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Problem Size} & \textbf{Variables} & \textbf{Constraints} & \textbf{Solve Time} \\ \midrule
+Small (1 batch, 3 sections) & $\sim$500 & $\sim$2,000 & 1-5 sec \\
+Medium (3 batches, 10 sections) & $\sim$2,000 & $\sim$10,000 & 5-20 sec \\
+Large (12 batches, 20 sections) & $\sim$8,000 & $\sim$50,000 & 20-60 sec \\
+\bottomrule
+\end{tabular}
+\caption{Typical Solver Performance}
+\end{table}
+
+\section{Backend API Reference}
+
+\subsection{Authentication Endpoints}
+
+\subsubsection{POST /api/auth/login}
+Authenticate user and receive JWT token.
+
+\textbf{Request Body}:
+\begin{verbatim}
+{
+  "username": "admin",
+  "password": "admin123"
+}
+\end{verbatim}
+
+\textbf{Response}:
+\begin{verbatim}
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "token_type": "bearer",
+  "role": "super_admin",
+  "full_name": "Super Admin",
+  "user_id": 1,
+  "department_id": null
+}
+\end{verbatim}
+
+
+\subsection{Core Resource Endpoints}
+
+\subsubsection{Departments}
+\begin{itemize}
+    \item \texttt{GET /api/departments} - List all departments
+    \item \texttt{POST /api/departments} - Create department (super\_admin)
+    \item \texttt{PUT /api/departments/\{id\}} - Update department
+    \item \texttt{DELETE /api/departments/\{id\}} - Delete department
+\end{itemize}
+
+\subsubsection{Batches}
+\begin{itemize}
+    \item \texttt{GET /api/departments/batches} - List batches (filtered by role)
+    \item \texttt{POST /api/departments/batches} - Create batch
+    \item \texttt{PUT /api/departments/batches/\{id\}} - Update batch
+    \item \texttt{DELETE /api/departments/batches/\{id\}} - Delete batch
+\end{itemize}
+
+\subsubsection{Sections}
+\begin{itemize}
+    \item \texttt{GET /api/departments/sections} - List sections
+    \item \texttt{POST /api/departments/sections} - Create section
+    \item \texttt{PUT /api/departments/sections/\{id\}} - Update section
+    \item \texttt{DELETE /api/departments/sections/\{id\}} - Delete section
+\end{itemize}
+
+\subsubsection{Teachers}
+\begin{itemize}
+    \item \texttt{GET /api/teachers} - List teachers with workload
+    \item \texttt{POST /api/teachers} - Create teacher
+    \item \texttt{PUT /api/teachers/\{id\}} - Update teacher
+    \item \texttt{DELETE /api/teachers/\{id\}} - Delete teacher
+    \item \texttt{POST /api/teachers/upload} - Bulk upload from Excel
+    \item \texttt{GET /api/teachers/template} - Download Excel template
+\end{itemize}
+
+\subsubsection{Subjects}
+\begin{itemize}
+    \item \texttt{GET /api/subjects} - List subjects
+    \item \texttt{POST /api/subjects} - Create subject
+    \item \texttt{PUT /api/subjects/\{id\}} - Update subject
+    \item \texttt{DELETE /api/subjects/\{id\}} - Delete subject
+\end{itemize}
+
+\subsubsection{Rooms}
+\begin{itemize}
+    \item \texttt{GET /api/rooms} - List rooms
+    \item \texttt{POST /api/rooms} - Create room
+    \item \texttt{PUT /api/rooms/\{id\}} - Update room
+    \item \texttt{DELETE /api/rooms/\{id\}} - Delete room
+\end{itemize}
+
+\subsection{Assignment Endpoints}
+
+\subsubsection{Sessions}
+\begin{itemize}
+    \item \texttt{GET /api/assignments/sessions} - List sessions
+    \item \texttt{POST /api/assignments/sessions} - Create session
+    \item \texttt{PUT /api/assignments/sessions/\{id\}} - Update session
+    \item \texttt{DELETE /api/assignments/sessions/\{id\}} - Delete session
+\end{itemize}
+
+\subsubsection{Assignments}
+\begin{itemize}
+    \item \texttt{GET /api/assignments} - List assignments (filtered by session)
+    \item \texttt{POST /api/assignments} - Create assignment
+    \item \texttt{PUT /api/assignments/\{id\}} - Update assignment
+    \item \texttt{DELETE /api/assignments/\{id\}} - Delete assignment
+    \item \texttt{POST /api/assignments/bulk-delete} - Delete multiple
+    \item \texttt{POST /api/assignments/import} - Import from Excel
+\end{itemize}
+
+
+\subsection{Timetable Generation Endpoint}
+
+\subsubsection{POST /api/timetables/generate}
+Generate new timetable using CP-SAT solver.
+
+\textbf{Request Body}:
+\begin{verbatim}
+{
+  "name": "Fall 2025 - CE Department",
+  "semester_info": "Odd Semester 2025",
+  "session_id": 1,
+  "batch_ids": [1, 2, 3],
+  "class_duration": 60,
+  "start_time": "08:30",
+  "break_slot": 2,
+  "break_start_time": "10:30",
+  "break_end_time": "11:00",
+  "max_slots_per_day": 8,
+  "max_slots_friday": 5,
+  "friday_has_break": false,
+  "allow_friday_labs": false,
+  "prefer_early_dismissal": false,
+  "lab_is_last": true
+}
+\end{verbatim}
+
+\textbf{Response (Success)}:
+\begin{verbatim}
+{
+  "id": 42,
+  "name": "Fall 2025 - CE Department",
+  "status": "generated",
+  "created_at": "2026-03-09T12:00:00",
+  "slots": [
+    {
+      "id": 1,
+      "day": 0,
+      "slot_index": 0,
+      "section_id": 1,
+      "subject_id": 5,
+      "teacher_id": 3,
+      "room_id": 1,
+      "is_lab": false,
+      "subject_code": "CE-101",
+      "teacher_name": "Prof. Dr. Riaz Bhanbhro"
+    },
+    ...
+  ]
+}
+\end{verbatim}
+
+\textbf{Response (Infeasible)}:
+\begin{verbatim}
+{
+  "error": "INFEASIBLE",
+  "message": "No valid solution found. Check constraints.",
+  "details": {
+    "total_required_hours": 240,
+    "available_slots": 200,
+    "over_allocated_teachers": ["Prof. Dr. Riaz Bhanbhro"],
+    "suggestions": [
+      "Reduce assignments or increase max slots per day",
+      "Remove some teacher restrictions",
+      "Allow Friday labs"
+    ]
+  }
+}
+\end{verbatim}
+
+\subsection{Restriction Endpoints}
+
+\subsubsection{Teacher Restrictions}
+\begin{itemize}
+    \item \texttt{GET /api/restrictions/teacher/\{id\}} - Get restrictions
+    \item \texttt{POST /api/restrictions/teacher/\{id\}} - Set restrictions
+\end{itemize}
+
+\textbf{Request Body}:
+\begin{verbatim}
+[
+  {"teacher_id": 1, "day": 0, "slot_index": 0},
+  {"teacher_id": 1, "day": 0, "slot_index": 1},
+  {"teacher_id": 1, "day": 2, "slot_index": 5}
+]
+\end{verbatim}
+
+\subsubsection{Schedule Configuration}
+\begin{itemize}
+    \item \texttt{GET /api/restrictions/config/\{section\_id\}} - Get config
+    \item \texttt{POST /api/restrictions/config} - Save config
+\end{itemize}
+
+\textbf{Request Body}:
+\begin{verbatim}
+{
+  "section_id": 1,
+  "no_gaps": true,
+  "lab_morning_days": [0, 2, 3]
+}
+\end{verbatim}
+
+
+\subsection{Public API Endpoints}
+
+\subsubsection{GET /api/public/departments}
+List all departments (no authentication required).
+
+\subsubsection{GET /api/public/timetables}
+List all active timetables.
+
+\subsubsection{GET /api/public/timetables/\{id\}}
+Get specific timetable with all slots.
+
+\subsubsection{GET /api/public/timetables/\{id\}/section/\{section\_id\}}
+Get timetable for specific section.
+
+\subsubsection{GET /api/public/timetables/\{id\}/teacher/\{teacher\_id\}}
+Get teacher's schedule from timetable.
+
+\subsubsection{GET /api/public/teachers}
+List all teachers with basic info.
+
+\subsubsection{GET /api/public/stats}
+Get system statistics (teacher count, subject count, etc.).
+
+\section{Frontend Architecture}
+
+\subsection{Component Structure}
+
+\subsubsection{Layout Components}
+\begin{itemize}
+    \item \texttt{DashboardLayout}: Main authenticated layout with sidebar
+    \item \texttt{PublicLayout}: Public-facing layout for timetables
+\end{itemize}
+
+\subsubsection{Page Components}
+\begin{itemize}
+    \item \texttt{LoginPage}: Authentication
+    \item \texttt{DashboardHome}: Overview with statistics
+    \item \texttt{DepartmentsPage}: Department/batch/section management
+    \item \texttt{TeachersPage}: Teacher CRUD with workload display
+    \item \texttt{SubjectsPage}: Subject management
+    \item \texttt{RoomsPage}: Room/lab management
+    \item \texttt{AssignmentsPage}: Assignment creation and import
+    \item \texttt{RestrictionsPage}: Teacher restrictions and section config
+    \item \texttt{TimetablePage}: Timetable generation and viewing
+    \item \texttt{SettingsPage}: Global configuration
+    \item \texttt{VCMasterDashboard}: Real-time class monitoring
+    \item \texttt{PublicTimetablePage}: Public timetable viewer
+    \item \texttt{FacultyDirectoryPage}: Public faculty listing
+    \item \texttt{TeacherSchedulePage}: Individual teacher schedule
+\end{itemize}
+
+\subsubsection{Shared Components}
+\begin{itemize}
+    \item \texttt{TimetableGrid}: Reusable timetable display grid
+    \item \texttt{AuthContext}: Authentication state management
+\end{itemize}
+
+\subsection{State Management}
+
+\subsubsection{Authentication Context}
+\begin{verbatim}
+const AuthContext = createContext({
+  user: null,
+  token: null,
+  login: (username, password) => {},
+  logout: () => {}
+});
+\end{verbatim}
+
+Stored in localStorage for persistence across sessions.
+
+
+\subsection{Routing Configuration}
+
+\begin{verbatim}
+<Routes>
+  <Route path="/login" element={<LoginPage />} />
+  
+  {/* Authenticated Routes */}
+  <Route element={<DashboardLayout />}>
+    <Route path="/" element={<DashboardHome />} />
+    <Route path="/departments" element={<DepartmentsPage />} />
+    <Route path="/teachers" element={<TeachersPage />} />
+    <Route path="/subjects" element={<SubjectsPage />} />
+    <Route path="/rooms" element={<RoomsPage />} />
+    <Route path="/assignments" element={<AssignmentsPage />} />
+    <Route path="/restrictions" element={<RestrictionsPage />} />
+    <Route path="/timetables" element={<TimetablePage />} />
+    <Route path="/settings" element={<SettingsPage />} />
+    <Route path="/vc-dashboard" element={<VCMasterDashboard />} />
+  </Route>
+  
+  {/* Public Routes */}
+  <Route path="/public" element={<PublicTimetablePage />} />
+  <Route path="/faculty" element={<FacultyDirectoryPage />} />
+  <Route path="/faculty/:id" element={<TeacherSchedulePage />} />
+</Routes>
+\end{verbatim}
+
+\section{Deployment Guide}
+
+\subsection{Development Environment}
+
+Setting up a development environment for the timetabling system requires several software components that work together to provide the complete application stack. The backend requires Python 3.11 or later to take advantage of modern language features and performance improvements. The frontend is built with Node.js 20, which provides the latest JavaScript runtime and npm package manager. PostgreSQL 15 serves as the database management system, offering robust transaction support and efficient query processing. Docker and Docker Compose are optional but recommended for development, as they provide consistent environments across different machines and simplify dependency management.
+
+\subsubsection{Prerequisites}
+\begin{itemize}
+    \item Python 3.11+
+    \item Node.js 20+
+    \item PostgreSQL 15+
+    \item Docker \& Docker Compose (optional)
+\end{itemize}
+
+\subsubsection{Local Setup}
+
+The local development setup process involves configuring both the backend and frontend components, establishing database connections, and initializing the system with seed data. This process is designed to be straightforward, allowing developers to get a working system running quickly.
+
+\begin{enumerate}
+    \item Clone repository:
+    \begin{verbatim}
+    git clone <repository-url>
+    cd timetable-system
+    \end{verbatim}
+    
+    \item Setup backend:
+    \begin{verbatim}
+    cd backend
+    python -m venv venv
+    source venv/bin/activate  # Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    \end{verbatim}
+    
+    \item Configure database:
+    \begin{verbatim}
+    # Create .env file
+    DATABASE_URL=postgresql://user:pass@localhost/timetable_db
+    SECRET_KEY=your-secret-key-here
+    \end{verbatim}
+    
+    \item Initialize database:
+    \begin{verbatim}
+    python seed.py
+    \end{verbatim}
+    
+    \item Run backend:
+    \begin{verbatim}
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    \end{verbatim}
+    
+    \item Setup frontend:
+    \begin{verbatim}
+    cd ../frontend
+    npm install
+    npm run dev
+    \end{verbatim}
+    
+    \item Access application:
+    \begin{itemize}
+        \item Frontend: \url{http://localhost:5173}
+        \item Backend API: \url{http://localhost:8000}
+        \item API Docs: \url{http://localhost:8000/docs}
+    \end{itemize}
+\end{enumerate}
+
+
+\subsection{Production Deployment}
+
+\subsubsection{Docker Compose Deployment}
+\begin{enumerate}
+    \item Prepare environment:
+    \begin{verbatim}
+    # Create .env file
+    POSTGRES_USER=timetable_user
+    POSTGRES_PASSWORD=secure_password
+    POSTGRES_DB=timetable_db
+    SECRET_KEY=production-secret-key
+    \end{verbatim}
+    
+    \item Build and start containers:
+    \begin{verbatim}
+    docker-compose -f docker-compose.prod.yml up -d --build
+    \end{verbatim}
+    
+    \item Initialize database:
+    \begin{verbatim}
+    docker exec -it tt-backend python seed.py
+    \end{verbatim}
+    
+    \item Fix database sequences (if needed):
+    \begin{verbatim}
+    docker exec -i tt-postgres psql -U timetable_user \
+      -d timetable_db < backend/fix_all_sequences.sql
+    \end{verbatim}
+\end{enumerate}
+
+\subsubsection{Contabo VPS Deployment}
+
+For production deployment on a virtual private server, the process involves connecting to the server, navigating to the application directory, pulling the latest code from version control, and rebuilding the Docker containers. This workflow ensures that the production environment stays synchronized with the latest development changes.
+
+\begin{enumerate}
+    \item Connect to server via SSH
+    
+    \item Navigate to project directory:
+    \begin{verbatim}
+    cd /path/to/application
+    \end{verbatim}
+    
+    \item Pull latest code:
+    \begin{verbatim}
+    git pull
+    \end{verbatim}
+    
+    \item Rebuild and restart:
+    \begin{verbatim}
+    docker-compose -f docker-compose.prod.yml down
+    docker-compose -f docker-compose.prod.yml up -d --build
+    \end{verbatim}
+    
+    \item Verify deployment:
+    \begin{verbatim}
+    docker ps
+    docker logs backend-container
+    docker logs frontend-container
+    \end{verbatim}
+\end{enumerate}
+
+\subsection{Database Maintenance}
+
+\subsubsection{Backup}
+\begin{verbatim}
+docker exec tt-postgres pg_dump -U timetable_user \
+  timetable_db > backup_$(date +%Y%m%d).sql
+\end{verbatim}
+
+\subsubsection{Restore}
+\begin{verbatim}
+docker exec -i tt-postgres psql -U timetable_user \
+  timetable_db < backup_20260309.sql
+\end{verbatim}
+
+\subsubsection{Sequence Fix}
+If encountering "duplicate key" errors:
+\begin{verbatim}
+docker exec -i tt-postgres psql -U timetable_user \
+  -d timetable_db < backend/fix_all_sequences.sql
+\end{verbatim}
+
+\section{Advanced Features}
+
+\subsection{Morning Lab Configuration}
+
+\subsubsection{Batch-Level Configuration}
+Configure morning lab preferences at batch level:
+
+\begin{itemize}
+    \item \textbf{Strict Mode}: All labs MUST be in morning (08:30-11:30)
+    \begin{itemize}
+        \item Labs start at slot 0 (08:30)
+        \item Occupy slots 0, 1, 2 (08:30-11:30)
+        \item Break shifts to slot 3 (11:00-11:30) on lab days
+        \item Theory classes restricted to slots 4-7 (12:00-16:00)
+    \end{itemize}
+    
+    \item \textbf{Prefer Mode}: Labs preferred in morning but not mandatory
+    \begin{itemize}
+        \item Solver gets cost reduction for morning labs
+        \item Falls back to afternoon if morning not feasible
+    \end{itemize}
+    
+    \item \textbf{Count Mode}: Exactly $k$ labs in morning per week
+    \begin{itemize}
+        \item Specify exact number (e.g., 2 or 3)
+        \item Remaining labs scheduled in afternoon
+    \end{itemize}
+\end{itemize}
+
+
+\subsection{Consecutive Lectures}
+
+For subjects requiring extended class periods:
+
+\subsubsection{Configuration}
+\begin{itemize}
+    \item Set \texttt{consecutive\_lectures} field in assignment
+    \item Options: 0 (normal), 2, 3, or 4 consecutive slots
+\end{itemize}
+
+\subsubsection{Implementation}
+\begin{equation}
+\text{If } n \text{ consecutive required:} \quad \sum_{i=0}^{n-1} x_{a,c,d,s+i} = n
+\end{equation}
+
+\subsubsection{Use Cases}
+\begin{itemize}
+    \item Laboratory sessions (3 hours)
+    \item Project work (2-4 hours)
+    \item Workshop sessions (4 hours)
+    \item Seminar presentations (2 hours)
+\end{itemize}
+
+\subsection{Cross-Department Teaching}
+
+\subsubsection{Teacher Engagement}
+Teachers can be engaged by multiple departments:
+
+\begin{enumerate}
+    \item Primary department: Home department of teacher
+    \item Engaged departments: Additional departments using teacher
+\end{enumerate}
+
+\subsubsection{Workload Calculation}
+\begin{align}
+W_t^{total} &= W_t^{home} + W_t^{engaged} \\
+W_t^{home} &= \text{Hours in home department} \\
+W_t^{engaged} &= \text{Hours in engaged departments}
+\end{align}
+
+\subsubsection{Clash Prevention}
+Solver ensures no teacher has overlapping classes across departments.
+
+\subsection{FYP and Special Rules}
+
+\subsubsection{Final Year Project (FYP) Locking}
+Lock specific subjects to specific days/times:
+
+\begin{verbatim}
+{
+  "dept": "CE",
+  "batch": 22,
+  "day": 4,
+  "label": "FYP-II",
+  "subject_codes": ["FYP-II"],
+  "start_slot": 0,
+  "consecutive_slots": 5
+}
+\end{verbatim}
+
+This locks FYP-II for batch 22CE to Friday, slots 0-4 (08:30-13:30).
+
+\subsubsection{Seminar Locking}
+Similar configuration for seminars, presentations, etc.
+
+\section{Performance Optimization}
+
+\subsection{Database Optimization}
+
+\subsubsection{Indexing Strategy}
+\begin{itemize}
+    \item Primary keys: Automatic B-tree indexes
+    \item Foreign keys: Indexed for join performance
+    \item Frequently queried fields: \texttt{department\_id}, \texttt{session\_id}, \texttt{batch\_id}
+\end{itemize}
+
+\subsubsection{Query Optimization}
+\begin{itemize}
+    \item Use \texttt{joinedload} for eager loading relationships
+    \item Avoid N+1 queries with proper joins
+    \item Filter at database level, not in Python
+\end{itemize}
+
+Example:
+\begin{verbatim}
+# Bad: N+1 query
+teachers = db.query(Teacher).all()
+for t in teachers:
+    dept_name = t.department.name  # Separate query each time
+
+# Good: Eager loading
+teachers = db.query(Teacher).options(
+    joinedload(Teacher.department)
+).all()
+for t in teachers:
+    dept_name = t.department.name  # No additional query
+\end{verbatim}
+
+
+\subsection{Frontend Optimization}
+
+\subsubsection{Code Splitting}
+React Router automatically splits code by route:
+\begin{verbatim}
+const LazyComponent = lazy(() => import('./Component'));
+\end{verbatim}
+
+\subsubsection{Memoization}
+Use \texttt{useMemo} and \texttt{useCallback} for expensive computations:
+\begin{verbatim}
+const filteredData = useMemo(() => {
+  return data.filter(item => item.active);
+}, [data]);
+\end{verbatim}
+
+\subsubsection{API Call Optimization}
+\begin{itemize}
+    \item Batch related API calls with \texttt{Promise.all}
+    \item Cache responses in component state
+    \item Debounce search inputs
+\end{itemize}
+
+\subsection{Solver Optimization}
+
+\subsubsection{Variable Reduction}
+\begin{itemize}
+    \item Pre-compute valid slot combinations
+    \item Eliminate impossible assignments early
+    \item Use symmetry breaking constraints
+\end{itemize}
+
+\subsubsection{Constraint Tightening}
+\begin{itemize}
+    \item Add implied constraints for faster propagation
+    \item Use cumulative constraints for resource limits
+    \item Employ global constraints (AllDifferent, etc.)
+\end{itemize}
+
+\subsubsection{Search Hints}
+\begin{itemize}
+    \item Provide initial solution from previous timetable
+    \item Use domain-specific heuristics
+    \item Prioritize hard-to-place variables
+\end{itemize}
+
+\section{Security Considerations}
+
+\subsection{Authentication}
+
+\subsubsection{JWT Token Security}
+\begin{itemize}
+    \item Tokens expire after 24 hours
+    \item Stored in localStorage (XSS risk mitigation via CSP)
+    \item Transmitted via Authorization header
+    \item Secret key rotated periodically
+\end{itemize}
+
+\subsubsection{Password Security}
+\begin{itemize}
+    \item Passwords hashed with bcrypt (cost factor 12)
+    \item Minimum length: 6 characters (configurable)
+    \item No password reuse enforcement (optional feature)
+\end{itemize}
+
+\subsection{Authorization}
+
+\subsubsection{Role-Based Access Control (RBAC)}
+\begin{itemize}
+    \item Endpoint-level authorization via decorators
+    \item Resource-level filtering by department
+    \item Action-level permissions (create, read, update, delete)
+\end{itemize}
+
+\subsubsection{Department Isolation}
+\begin{itemize}
+    \item Program admins see only their department data
+    \item Cross-department queries blocked at API level
+    \item Database-level filtering for multi-tenant security
+\end{itemize}
+
+\subsection{Input Validation}
+
+\subsubsection{Pydantic Schemas}
+All API inputs validated against Pydantic models:
+\begin{verbatim}
+class TeacherCreate(BaseModel):
+    name: str
+    designation: str
+    max_contact_hours: int = 12
+    department_id: int
+    is_lab_engineer: bool = False
+\end{verbatim}
+
+\subsubsection{SQL Injection Prevention}
+\begin{itemize}
+    \item All queries use SQLAlchemy ORM
+    \item Parameterized queries for raw SQL
+    \item No string concatenation in queries
+\end{itemize}
+
+
+\section{Troubleshooting Guide}
+
+\subsection{Common Issues}
+
+\subsubsection{Database Connection Errors}
+\textbf{Symptom}: "Could not connect to database"
+
+\textbf{Solutions}:
+\begin{enumerate}
+    \item Verify PostgreSQL is running: \texttt{docker ps | grep postgres}
+    \item Check connection string in \texttt{.env}
+    \item Ensure database exists: \texttt{docker exec -it tt-postgres psql -U timetable\_user -l}
+    \item Check network connectivity between containers
+\end{enumerate}
+
+\subsubsection{Duplicate Key Errors}
+\textbf{Symptom}: "duplicate key value violates unique constraint"
+
+\textbf{Solution}:
+\begin{verbatim}
+docker exec -i tt-postgres psql -U timetable_user \
+  -d timetable_db < backend/fix_all_sequences.sql
+\end{verbatim}
+
+\subsubsection{Solver Timeout}
+\textbf{Symptom}: "Solver timed out after 60 seconds"
+
+\textbf{Solutions}:
+\begin{enumerate}
+    \item Increase timeout in Settings page
+    \item Reduce problem size (fewer batches per generation)
+    \item Relax constraints (allow Friday labs, disable no-gaps)
+    \item Check for over-constrained teachers
+\end{enumerate}
+
+\subsubsection{Frontend Build Errors}
+\textbf{Symptom}: "Module not found" or "Cannot resolve"
+
+\textbf{Solutions}:
+\begin{enumerate}
+    \item Clear node\_modules: \texttt{rm -rf node\_modules package-lock.json}
+    \item Reinstall: \texttt{npm install}
+    \item Clear Vite cache: \texttt{rm -rf node\_modules/.vite}
+    \item Check Node version: \texttt{node --version} (should be 20+)
+\end{enumerate}
+
+\subsection{Performance Issues}
+
+\subsubsection{Slow Page Load}
+\textbf{Diagnosis}:
+\begin{enumerate}
+    \item Open browser DevTools Network tab
+    \item Identify slow API calls
+    \item Check for N+1 query patterns
+\end{enumerate}
+
+\textbf{Solutions}:
+\begin{enumerate}
+    \item Add database indexes
+    \item Use eager loading for relationships
+    \item Implement pagination for large datasets
+    \item Cache frequently accessed data
+\end{enumerate}
+
+\subsubsection{Slow Timetable Generation}
+\textbf{Diagnosis}:
+\begin{enumerate}
+    \item Check solver logs: \texttt{docker logs tt-backend | grep -i solver}
+    \item Monitor CPU usage: \texttt{docker stats}
+    \item Review constraint complexity
+\end{enumerate}
+
+\textbf{Solutions}:
+\begin{enumerate}
+    \item Generate batch-wise instead of all at once
+    \item Reduce penalty weights for soft constraints
+    \item Simplify morning lab configurations
+    \item Remove unnecessary restrictions
+\end{enumerate}
+
+\section{Future Enhancements}
+
+\subsection{Planned Features}
+
+\subsubsection{Short-term (Next 3 months)}
+\begin{itemize}
+    \item Mobile-responsive design improvements
+    \item PDF export for timetables
+    \item Email notifications for schedule changes
+    \item Conflict detection before generation
+    \item Undo/redo for timetable modifications
+\end{itemize}
+
+\subsubsection{Medium-term (3-6 months)}
+\begin{itemize}
+    \item Multi-language support (Urdu, Sindhi)
+    \item Advanced analytics dashboard
+    \item Room utilization reports
+    \item Teacher workload visualization
+    \item Automated backup scheduling
+\end{itemize}
+
+\subsubsection{Long-term (6-12 months)}
+\begin{itemize}
+    \item Machine learning for preference learning
+    \item Mobile app (React Native)
+    \item Integration with student information system
+    \item Automated exam scheduling
+    \item Resource optimization recommendations
+\end{itemize}
+
+
+\subsection{Research Opportunities}
+
+\subsubsection{Algorithm Improvements}
+\begin{itemize}
+    \item Hybrid metaheuristics (GA + CP-SAT)
+    \item Multi-objective optimization (Pareto fronts)
+    \item Incremental solving for schedule updates
+    \item Parallel constraint solving
+\end{itemize}
+
+\subsubsection{Machine Learning Applications}
+\begin{itemize}
+    \item Predict optimal solver parameters
+    \item Learn teacher preferences from history
+    \item Forecast room utilization patterns
+    \item Anomaly detection in schedules
+\end{itemize}
+
+\subsubsection{Theoretical Contributions}
+\begin{itemize}
+    \item Complexity analysis of university timetabling
+    \item Novel constraint formulations
+    \item Benchmark dataset creation
+    \item Comparative study with other solvers
+\end{itemize}
+
+\section{Conclusion}
+
+The automated university timetable system represents a significant advancement in academic scheduling technology, demonstrating how modern constraint programming techniques can be applied to solve complex real-world problems. By leveraging the power of Google OR-Tools' CP-SAT solver and combining it with a user-friendly web interface, the system makes sophisticated optimization technology accessible to academic administrators without requiring specialized technical knowledge.
+
+The system's success stems from its careful balance of flexibility and structure. Hard constraints ensure that fundamental requirements—such as preventing scheduling conflicts and meeting credit hour obligations—are always satisfied, while soft constraints guide the search toward high-quality solutions that meet stakeholder preferences. The configurable nature of these soft constraints allows institutions to adapt the system to their specific needs and priorities, whether emphasizing student schedule quality, faculty workload balance, or resource utilization.
+
+From a technical perspective, the system demonstrates several important principles of constraint programming: the value of domain-specific modeling, the importance of efficient constraint propagation, and the power of learned clauses in pruning the search space. The mathematical formulation presented in this document provides a foundation for understanding how complex scheduling requirements can be expressed as constraints and objectives, while the implementation details show how these abstract concepts are realized in working software.
+
+Looking forward, the system provides a platform for continued innovation in academic scheduling. The modular architecture allows for the addition of new features and constraints without requiring fundamental redesign, while the use of standard technologies ensures long-term maintainability and the ability to integrate with other institutional systems. As universities continue to face increasing complexity in their scheduling requirements—driven by factors such as growing enrollment, resource constraints, and evolving pedagogical approaches—automated scheduling systems like this one will become increasingly essential tools for academic administration.
+
+\section{Acknowledgments}
+
+This system was developed at the Department of Civil Engineering, Quaid-e-Awam University of Engineering, Science \& Technology (QUEST), Nawabshah, Pakistan.
+
+Special thanks to:
+\begin{itemize}
+    \item The faculty and staff of the university for their feedback and support
+    \item Google OR-Tools team for the excellent CP-SAT solver
+    \item The open-source community for the frameworks and libraries used
+\end{itemize}
+
+\section{References}
+
+\begin{enumerate}
+    \item Google OR-Tools Documentation. \url{https://developers.google.com/optimization}
+    \item FastAPI Documentation. \url{https://fastapi.tiangolo.com}
+    \item React Documentation. \url{https://react.dev}
+    \item PostgreSQL Documentation. \url{https://www.postgresql.org/docs}
+    \item Constraint Programming: Principles and Practice. Francesca Rossi, Peter van Beek, Toby Walsh. 2006.
+    \item University Timetabling: A Survey. Andrea Schaerf. 1999.
+    \item Automated Timetabling: Constraint-Based Approaches. Edmund Burke, Wilhelm Erben. 2001.
+\end{enumerate}
+
+\appendix
+
+\section{Appendix A: Default System Configuration}
+
+The system includes several default user accounts for initial setup and testing purposes. These accounts should be modified or disabled in production environments to ensure security.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Username} & \textbf{Default Password} & \textbf{Role} \\ \midrule
+admin & [change on first login] & Super Admin \\
+admin\_dept1 & [change on first login] & Department Admin \\
+admin\_dept2 & [change on first login] & Department Admin \\
+admin\_dept3 & [change on first login] & Department Admin \\
+clerk\_dept1 & [change on first login] & Clerk \\
+\bottomrule
+\end{tabular}
+\caption{Default User Accounts (Must be changed in production!)}
+\end{table}
+
+\textbf{Security Note}: All default passwords must be changed immediately upon first login. The system enforces password complexity requirements and supports role-based access control to ensure appropriate authorization levels.
+
+\section{Appendix B: Time Slot Mapping}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{Slot Index} & \textbf{Time Range} & \textbf{Duration} \\ \midrule
+0 & 08:30 - 09:30 & 60 min \\
+1 & 09:30 - 10:30 & 60 min \\
+2 & 10:30 - 11:00 & 30 min (Break) \\
+3 & 11:00 - 12:00 & 60 min \\
+4 & 12:00 - 13:00 & 60 min \\
+5 & 13:00 - 14:00 & 60 min \\
+6 & 14:00 - 15:00 & 60 min \\
+7 & 15:00 - 16:00 & 60 min \\
+\bottomrule
+\end{tabular}
+\caption{Monday-Thursday Time Slots}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{Slot Index} & \textbf{Time Range} & \textbf{Duration} \\ \midrule
+0 & 08:30 - 09:30 & 60 min \\
+1 & 09:30 - 10:30 & 60 min \\
+2 & 10:30 - 11:30 & 60 min \\
+3 & 11:30 - 12:30 & 60 min \\
+4 & 12:30 - 13:30 & 60 min \\
+\bottomrule
+\end{tabular}
+\caption{Friday Time Slots (No Break)}
+\end{table}
+
+\section{Appendix C: Database Schema Diagram}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, scale=0.7, every node/.style={scale=0.7}]
+    % Entities
+    \node[draw, rectangle] (dept) {Department};
+    \node[draw, rectangle, below of=dept] (batch) {Batch};
+    \node[draw, rectangle, below of=batch] (section) {Section};
+    \node[draw, rectangle, right of=dept, xshift=3cm] (subject) {Subject};
+    \node[draw, rectangle, right of=batch, xshift=3cm] (teacher) {Teacher};
+    \node[draw, rectangle, right of=section, xshift=3cm] (room) {Room};
+    \node[draw, rectangle, below of=teacher] (assignment) {Assignment};
+    \node[draw, rectangle, below of=assignment] (timetable) {Timetable};
+    \node[draw, rectangle, below of=timetable] (slot) {TimetableSlot};
+    
+    % Relationships
+    \draw[->] (dept) -- (batch);
+    \draw[->] (batch) -- (section);
+    \draw[->] (dept) -- (subject);
+    \draw[->] (dept) -- (teacher);
+    \draw[->] (section) -- (room);
+    \draw[->] (subject) -- (assignment);
+    \draw[->] (teacher) -- (assignment);
+    \draw[->] (batch) -- (assignment);
+    \draw[->] (assignment) -- (timetable);
+    \draw[->] (timetable) -- (slot);
+    \draw[->] (section) -- (slot);
+    \draw[->] (subject) -- (slot);
+    \draw[->] (teacher) -- (slot);
+    \draw[->] (room) -- (slot);
+\end{tikzpicture}
+\caption{Simplified Entity Relationship Diagram}
+\end{figure}
+
+\end{document}

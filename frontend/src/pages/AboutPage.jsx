@@ -227,7 +227,7 @@ export default function AboutPage() {
                     {/* Admin capabilities */}
                     <div className="mt-14 p-8 bg-gradient-to-br from-blue-50 via-violet-50 to-purple-50 rounded-3xl border border-blue-100">
                         <h3 className="font-display font-bold text-xl text-slate-800 mb-4">📋 For Administrators</h3>
-                        <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                        <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-600 mb-6">
                             {[
                                 'Manage faculty, subjects, rooms, and sections',
                                 'Set teacher restrictions (unavailable time slots)',
@@ -243,6 +243,43 @@ export default function AboutPage() {
                                     <span>{item}</span>
                                 </div>
                             ))}
+                        </div>
+                        <div className="pt-6 border-t border-blue-200">
+                            <h4 className="font-semibold text-slate-700 mb-3 text-sm">🎯 Quick Setup Guide (First-Time Setup)</h4>
+                            <ol className="space-y-2 text-sm text-slate-600">
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">1.</span>
+                                    <span><strong>Create Departments</strong> → Add department codes (CE, CS, EE) and names</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">2.</span>
+                                    <span><strong>Create Batches</strong> → Define admission year and semester for each department</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">3.</span>
+                                    <span><strong>Create Sections</strong> → Divide batches into sections (A, B, C) and assign classrooms</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">4.</span>
+                                    <span><strong>Add Rooms</strong> → Create classrooms (CR-01, CR-02) and labs (Lab-1, Lab-2)</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">5.</span>
+                                    <span><strong>Add Teachers</strong> → Enter faculty with designations and max contact hours</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">6.</span>
+                                    <span><strong>Add Subjects</strong> → Define courses with theory/lab credits and semester</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">7.</span>
+                                    <span><strong>Create Assignments</strong> → Link teachers to subjects and sections</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="font-bold text-blue-600 flex-shrink-0">8.</span>
+                                    <span><strong>Generate Timetable</strong> → Click generate and wait 10-60 seconds for optimal schedule</span>
+                                </li>
+                            </ol>
                         </div>
                     </div>
                 </div>
@@ -294,6 +331,14 @@ export default function AboutPage() {
                             answer="Python (FastAPI + SQLAlchemy) backend, React + Tailwind CSS frontend, and Google OR-Tools constraint programming solver for scheduling." />
                         <FAQItem question="How does conflict-free scheduling work?"
                             answer="The system models timetabling as a constraint satisfaction problem. It enforces no-overlap rules and optimizes for fair workload distribution using advanced algorithms." />
+                        <FAQItem question="What if timetable generation fails (INFEASIBLE)?"
+                            answer="Common causes: insufficient time slots, over-restricted teachers, or lab room shortage. Solutions: reduce assignments, remove some restrictions, add more rooms, or enable Friday labs in settings." />
+                        <FAQItem question="How do credit hours work?"
+                            answer="Theory credits: each credit = 1 hour/week on different days (3 credits = Mon/Wed/Fri). Lab credits: each credit = 3 consecutive hours in one block (1 credit = 3-hour lab session)." />
+                        <FAQItem question="Can teachers have consecutive classes?"
+                            answer="Yes! When creating assignments, set 'consecutive lectures' to 2, 3, or 4 hours. Useful for project work, workshops, or studio classes requiring extended periods." />
+                        <FAQItem question="How do I combine multiple sections in one class?"
+                            answer="Use combination IDs when creating assignments. Give the same combination ID to all sections that should attend together (e.g., all sections attending 'Engineering Ethics' together)." />
                     </div>
                 </div>
             </section>

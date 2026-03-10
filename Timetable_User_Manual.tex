@@ -1,0 +1,896 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\title{\textbf{Automated Timetable System}\\
+\large Complete User Manual}
+\author{Quaid-e-Awam University of Engineering, Science \& Technology}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{About This Manual}
+
+This user manual provides comprehensive step-by-step instructions for using the Automated Timetable System. Whether you are a system administrator setting up the system for the first time, a program administrator managing your department's schedule, or a teacher viewing your assigned classes, this manual will guide you through all necessary procedures.
+
+The manual is organized by user role and task type, allowing you to quickly find the information relevant to your responsibilities. Each section includes detailed instructions, screenshots where helpful, and troubleshooting tips for common issues.
+
+\subsection{System Overview}
+
+The Automated Timetable System is a web-based application that generates conflict-free class schedules for universities. The system handles the complex task of assigning courses to time slots and rooms while ensuring that teachers, students, and facilities are not double-booked.
+
+Key capabilities include:
+\begin{itemize}
+\item Automatic generation of complete timetables in under 60 seconds
+\item Support for multiple departments with independent scheduling
+\item Handling of both theory classes and laboratory sessions
+\item Flexible configuration for institutional preferences
+\item Public access for students to view published schedules
+\item Real-time monitoring of ongoing classes
+\end{itemize}
+
+\subsection{User Roles}
+
+The system supports six different user roles, each with specific permissions:
+
+\textbf{Super Administrator}: Has complete access to all system functions across all departments. Can create departments, configure global settings, and manage user accounts. Typically assigned to IT staff or senior administrators.
+
+\textbf{Program Administrator}: Has full control over a specific department. Can manage teachers, subjects, assignments, and generate timetables for their department. Cannot access other departments' data.
+
+\textbf{Clerk}: Can perform data entry tasks within a department, such as creating teachers and subjects. Cannot generate timetables or modify critical settings.
+
+\textbf{Teacher}: Can view their own schedule and assigned classes. Has read-only access to most system data.
+
+\textbf{Lab Engineer}: Similar to teacher role but focused on laboratory sessions. Can view lab schedules and assigned sections.
+
+\textbf{Public}: Unauthenticated users who can view published timetables and faculty directory. No login required.
+
+
+\section{Getting Started}
+
+\subsection{Accessing the System}
+
+The system is accessed through a web browser. We recommend using the latest version of Google Chrome, Mozilla Firefox, Microsoft Edge, or Safari for the best experience.
+
+\textbf{To access the system}:
+\begin{enumerate}
+\item Open your web browser
+\item Navigate to the system URL (provided by your IT department)
+\item You will see the login page
+\end{enumerate}
+
+\subsection{Logging In}
+
+\textbf{To log in to the system}:
+\begin{enumerate}
+\item Enter your username in the "Username" field
+\item Enter your password in the "Password" field
+\item Click the "Login" button
+\item If credentials are correct, you will be redirected to the dashboard
+\end{enumerate}
+
+\textbf{First-time login}: If this is your first time logging in, you should change your password immediately:
+\begin{enumerate}
+\item After logging in, click on your name in the top-right corner
+\item Select "Change Password" from the dropdown menu
+\item Enter your current password
+\item Enter your new password twice to confirm
+\item Click "Update Password"
+\end{enumerate}
+
+\textbf{Forgot password}: Contact your system administrator to reset your password.
+
+\subsection{Navigating the Interface}
+
+After logging in, you will see the main dashboard with a sidebar menu on the left. The sidebar contains links to all major system functions:
+
+\begin{itemize}
+\item \textbf{Dashboard}: Overview with statistics and recent activity
+\item \textbf{Departments}: Manage departments, batches, and sections
+\item \textbf{Teachers}: Add and manage faculty members
+\item \textbf{Subjects}: Define courses and credit hours
+\item \textbf{Rooms}: Manage classrooms and laboratories
+\item \textbf{Assignments}: Assign teachers to subjects and sections
+\item \textbf{Restrictions}: Configure teacher availability and preferences
+\item \textbf{Timetables}: Generate and view schedules
+\item \textbf{Settings}: Configure system parameters
+\end{itemize}
+
+The top navigation bar shows your name, role, and department (if applicable). Click on your name to access account settings or log out.
+
+\section{Initial System Setup (Super Administrator)}
+
+This section describes the one-time setup process required when deploying the system for the first time. These steps should be completed in order, as each step builds upon the previous ones.
+
+\subsection{Step 1: Create Departments}
+
+Departments are the top-level organizational units in the system. Each department will have its own program administrator and independent scheduling.
+
+\textbf{To create a department}:
+\begin{enumerate}
+\item Click "Departments" in the sidebar menu
+\item Click the "Add Department" button (blue button in top-right)
+\item In the dialog that appears:
+\begin{itemize}
+\item Enter a short department code (2-4 characters, e.g., "CE", "CS", "EE")
+\item Enter the full department name (e.g., "Civil Engineering")
+\end{itemize}
+\item Click "Save"
+\item The new department appears in the list
+\end{enumerate}
+
+\textbf{Important notes}:
+\begin{itemize}
+\item Department codes must be unique
+\item Codes cannot be changed after creation
+\item Choose codes carefully as they will be used throughout the system
+\item Departments cannot be deleted if they have associated data
+\end{itemize}
+
+\textbf{Example departments}:
+\begin{itemize}
+\item Code: "CE", Name: "Civil Engineering"
+\item Code: "CS", Name: "Computer Science"
+\item Code: "EE", Name: "Electrical Engineering"
+\item Code: "ME", Name: "Mechanical Engineering"
+\end{itemize}
+
+\subsection{Step 2: Create Batches}
+
+Batches represent cohorts of students who entered the university in the same year. Each batch belongs to a specific department.
+
+\textbf{To create a batch}:
+\begin{enumerate}
+\item Click "Departments" in the sidebar
+\item Click the "Batches" tab at the top of the page
+\item Click "Add Batch" button
+\item In the dialog:
+\begin{itemize}
+\item Select the department from the dropdown
+\item Enter the admission year (e.g., 22 for 2022, 23 for 2023)
+\item Enter the current semester number (1-8)
+\item Optionally configure morning lab settings (see below)
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Morning Lab Configuration} (Optional):
+
+If your department requires laboratory sessions in morning time slots, configure these settings:
+
+\begin{itemize}
+\item \textbf{Mode}:
+\begin{itemize}
+\item \textit{None}: No morning lab requirement (default)
+\item \textit{Strict}: ALL labs MUST be in morning (08:30-11:30)
+\item \textit{Prefer}: Labs preferred in morning but not mandatory
+\item \textit{Count}: Exactly N labs in morning per week
+\end{itemize}
+
+\item \textbf{Days}: Select which days (Monday-Thursday) should have morning labs
+
+\item \textbf{Count}: If mode is "Count", specify how many labs per week (e.g., 2 or 3)
+\end{itemize}
+
+\textbf{Example batches}:
+\begin{itemize}
+\item Department: CE, Year: 22, Semester: 7 (final year, odd semester)
+\item Department: CE, Year: 23, Semester: 5 (third year, odd semester)
+\item Department: CS, Year: 24, Semester: 3 (second year, odd semester)
+\end{itemize}
+
+
+\subsection{Step 3: Create Sections}
+
+Sections divide batches into smaller groups for classroom management. Large batches may have multiple sections (A, B, C), while smaller batches may have just one section.
+
+\textbf{To create a section}:
+\begin{enumerate}
+\item Click "Departments" in the sidebar
+\item Click the "Sections" tab
+\item Click "Add Section" button
+\item In the dialog:
+\begin{itemize}
+\item Select the batch this section belongs to
+\item Enter section name (e.g., "A", "B", "C") or leave blank for single-section batches
+\item Select a default classroom (optional - can be assigned later)
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Naming conventions}:
+\begin{itemize}
+\item Use letters for multiple sections: A, B, C, D
+\item Leave name blank for batches with only one section
+\item Section names must be unique within a batch
+\end{itemize}
+
+\textbf{Example sections}:
+\begin{itemize}
+\item Batch: 22CE, Section: A (first section of 2022 Civil Engineering)
+\item Batch: 22CE, Section: B (second section)
+\item Batch: 23CS, Section: (blank - only one section)
+\end{itemize}
+
+\subsection{Step 4: Create Rooms}
+
+Rooms represent physical spaces where classes are held. The system distinguishes between regular classrooms and laboratory facilities.
+
+\textbf{To create a room}:
+\begin{enumerate}
+\item Click "Rooms" in the sidebar
+\item Click "Add Room" button
+\item In the dialog:
+\begin{itemize}
+\item Enter room name (e.g., "CR-01" for classroom, "Lab-1" for laboratory)
+\item Enter capacity (optional - for future use)
+\item Check "Is Lab" if this is a laboratory facility
+\item Select department (or leave blank for shared rooms)
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Room naming suggestions}:
+\begin{itemize}
+\item Classrooms: CR-01, CR-02, CR-03, etc.
+\item Laboratories: Lab-1, Lab-2, Lab-3, etc.
+\item Specialized rooms: Seminar Hall, Drawing Hall, Computer Lab, etc.
+\end{itemize}
+
+\textbf{Department assignment}:
+\begin{itemize}
+\item Leave blank for rooms shared across all departments
+\item Assign to specific department for dedicated facilities
+\item Department-specific rooms get priority for that department's classes
+\end{itemize}
+
+\textbf{Default setup}: The system automatically creates 12 classrooms (CR-01 to CR-12) and 6 labs (Lab-1 to Lab-6) when first initialized.
+
+\subsection{Step 5: Add Teachers}
+
+Teachers are faculty members who deliver instruction. Each teacher belongs to a home department but can teach courses in other departments.
+
+\textbf{To add a teacher individually}:
+\begin{enumerate}
+\item Click "Teachers" in the sidebar
+\item Click "Add Teacher" button
+\item In the dialog:
+\begin{itemize}
+\item Enter full name with title (e.g., "Prof. Dr. John Smith", "Dr. Jane Doe")
+\item Select designation from dropdown:
+\begin{itemize}
+\item Professor
+\item Associate Professor
+\item Assistant Professor
+\item Lecturer
+\item Lab Engineer
+\end{itemize}
+\item Max contact hours will auto-fill based on designation (can be adjusted)
+\item Select home department
+\item Check "Is Lab Engineer" if this person supervises labs
+\item Check "Allow Consecutive" if teacher can have back-to-back classes
+\item Set "Max Consecutive Classes" (2, 3, or 4) if consecutive allowed
+\item Optionally create user account (see below)
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Max Contact Hours by Designation}:
+\begin{itemize}
+\item Professor: 6 hours/week (research-focused)
+\item Associate Professor: 9 hours/week
+\item Assistant Professor: 12 hours/week
+\item Lecturer: 12 hours/week
+\item Lab Engineer: 15 hours/week (lab supervision)
+\end{itemize}
+
+\textbf{Creating User Accounts}:
+
+If you want the teacher to access the system:
+\begin{itemize}
+\item Check "Assign Account" checkbox
+\item Enter desired username (or leave blank to auto-generate)
+\item Enter password (or leave blank to use username as password)
+\item Teacher will be able to log in and view their schedule
+\end{itemize}
+
+\textbf{Bulk Upload}:
+
+To add many teachers at once:
+\begin{enumerate}
+\item Click "Bulk Upload" button
+\item Click "Download Template" to get Excel file
+\item Fill in the template with teacher data:
+\begin{itemize}
+\item Column A: Name (with title)
+\item Column B: Designation
+\item Column C: Is Lab Engineer (0 or 1)
+\end{itemize}
+\item Save the Excel file
+\item Click "Choose File" and select your file
+\item Click "Upload"
+\item System will create all teachers and auto-generate user accounts
+\end{enumerate}
+
+
+\subsection{Step 6: Add Subjects}
+
+Subjects define the courses offered by each department. Each subject specifies theory and lab credit hours.
+
+\textbf{To add a subject}:
+\begin{enumerate}
+\item Click "Subjects" in the sidebar
+\item Click "Add Subject" button
+\item In the dialog:
+\begin{itemize}
+\item Enter subject code (e.g., "CE-101", "CS-201")
+\item Enter full subject name
+\item Enter theory credits (0-3)
+\item Enter lab credits (0-1, where 1 = 3 contact hours)
+\item Select semester (1-8)
+\item Select department
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Understanding Credit Hours}:
+\begin{itemize}
+\item \textbf{Theory Credits}: Each credit = 1 hour/week on different days
+\begin{itemize}
+\item 3 credits = 3 hours/week (e.g., Monday, Wednesday, Friday)
+\item 2 credits = 2 hours/week (e.g., Tuesday, Thursday)
+\end{itemize}
+\item \textbf{Lab Credits}: Each credit = 3 consecutive hours/week in one block
+\begin{itemize}
+\item 1 credit = 3 hours (e.g., Monday 1:00-4:00 PM)
+\item 0 credits = no lab component
+\end{itemize}
+\end{itemize}
+
+\textbf{Common Subject Patterns}:
+\begin{itemize}
+\item \textbf{3+0}: Pure theory course (3 lectures, no lab)
+\item \textbf{3+1}: Theory with lab (3 lectures + 3-hour lab)
+\item \textbf{2+1}: Theory with lab (2 lectures + 3-hour lab)
+\item \textbf{0+1}: Pure lab course (no lectures, 3-hour lab only)
+\item \textbf{2+0}: Short theory course (2 lectures, no lab)
+\end{itemize}
+
+\textbf{Example subjects}:
+\begin{itemize}
+\item Code: "CE-101", Name: "Engineering Mechanics", Theory: 3, Lab: 1, Semester: 1
+\item Code: "CS-201", Name: "Data Structures", Theory: 3, Lab: 1, Semester: 3
+\item Code: "MTH-101", Name: "Calculus I", Theory: 3, Lab: 0, Semester: 1
+\end{itemize}
+
+\section{Managing Assignments (Program Administrator)}
+
+Assignments connect subjects, teachers, and sections. This is where you specify who teaches what to whom.
+
+\subsection{Creating Assignment Sessions}
+
+Assignment sessions group assignments for a specific academic term (e.g., Fall 2025, Spring 2026).
+
+\textbf{To create a session}:
+\begin{enumerate}
+\item Click "Assignments" in the sidebar
+\item Click "Manage Sessions" button
+\item Click "Create Session"
+\item Enter session name (e.g., "Fall 2025", "Spring 2026")
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Important}: Sessions are university-wide and shared across all departments. All departments can use the same session for the same semester.
+
+\subsection{Creating Assignments}
+
+\textbf{To create an assignment}:
+\begin{enumerate}
+\item Click "Assignments" in the sidebar
+\item Select the active session from the dropdown at the top
+\item Click "Add Assignment" button
+\item In the dialog:
+\begin{itemize}
+\item Select subject
+\item Select theory teacher (who delivers lectures)
+\item Select lab engineer (if subject has lab component)
+\item Select lab room (if subject has lab component)
+\item Select batch
+\item Select one or more sections (hold Ctrl/Cmd to select multiple)
+\item Set consecutive lectures (0, 2, 3, or 4):
+\begin{itemize}
+\item 0: Normal scheduling (lectures on different days)
+\item 2: Two consecutive 1-hour slots
+\item 3: Three consecutive 1-hour slots
+\item 4: Four consecutive 1-hour slots
+\end{itemize}
+\item Enter combination ID (optional - for shared slots, see below)
+\end{itemize}
+\item Click "Save"
+\end{enumerate}
+
+\textbf{Consecutive Lectures}:
+
+Use consecutive lectures for subjects requiring extended class periods:
+\begin{itemize}
+\item Project work (2-4 hours)
+\item Workshop sessions (3-4 hours)
+\item Seminar presentations (2 hours)
+\item Studio classes (3-4 hours)
+\end{itemize}
+
+\textbf{Combination IDs}:
+
+Use combination IDs when multiple sections attend the same class together:
+\begin{itemize}
+\item Assign same combination ID to all sections that should be combined
+\item Example: Sections A, B, and C all attend "Engineering Ethics" together
+\item Give all three assignments the same combination ID (e.g., "ethics-combined")
+\item System will schedule one time slot for all three sections
+\end{itemize}
+
+\subsection{Bulk Import from Excel}
+
+For large numbers of assignments, use bulk import:
+
+\begin{enumerate}
+\item Click "Import from Excel" button
+\item Click "Download Template"
+\item Fill in the Excel template with assignment data
+\item Upload the completed file
+\item System will match teachers and subjects using fuzzy matching
+\item Review the matches and confirm
+\item Click "Import" to create all assignments
+\end{enumerate}
+
+
+\section{Configuring Restrictions and Preferences}
+
+\subsection{Teacher Restrictions}
+
+Teacher restrictions specify time slots when a teacher is unavailable.
+
+\textbf{To set teacher restrictions}:
+\begin{enumerate}
+\item Click "Restrictions" in the sidebar
+\item Select "Teacher Restrictions" tab
+\item Select teacher from dropdown
+\item Click on time slots in the grid to mark as unavailable (turns red)
+\item Click again to remove restriction (turns white)
+\item Click "Save Restrictions" when done
+\end{enumerate}
+
+\textbf{Common reasons for restrictions}:
+\begin{itemize}
+\item Administrative duties (e.g., department meetings every Monday 2-3 PM)
+\item Teaching at another institution
+\item Research commitments
+\item Personal appointments
+\end{itemize}
+
+\textbf{Important}: Restrictions are hard constraints. Teachers will NEVER be scheduled during restricted slots.
+
+\subsection{Section Schedule Configuration}
+
+Configure scheduling preferences for specific sections.
+
+\textbf{To configure a section}:
+\begin{enumerate}
+\item Click "Restrictions" in the sidebar
+\item Select "Section Config" tab
+\item Select section from dropdown
+\item Configure preferences:
+\begin{itemize}
+\item \textbf{No Gaps}: Check to enforce continuous schedule (no free periods)
+\item \textbf{Morning Lab Days}: Select days for morning labs (if applicable)
+\end{itemize}
+\item Click "Save Configuration"
+\end{enumerate}
+
+\textbf{No Gaps Preference}:
+\begin{itemize}
+\item When enabled: Section will have no idle periods between classes
+\item Classes will be scheduled consecutively (e.g., 8:30-12:00 with no breaks)
+\item Students can leave campus earlier
+\item Highly recommended for student convenience
+\end{itemize}
+
+\subsection{Global Settings}
+
+Configure system-wide parameters (Super Administrator only).
+
+\textbf{To access global settings}:
+\begin{enumerate}
+\item Click "Settings" in the sidebar
+\item Modify desired parameters
+\item Click "Save Settings"
+\end{enumerate}
+
+\textbf{Time Grid Settings}:
+\begin{itemize}
+\item \textbf{Start Time}: First class start time (default: 08:30)
+\item \textbf{Break Start}: Break start time (default: 10:30)
+\item \textbf{Break End}: Break end time (default: 11:00)
+\item \textbf{Break Slot}: Slot index for break (default: 2)
+\item \textbf{Max Slots Per Day}: Monday-Thursday (default: 8)
+\item \textbf{Max Slots Friday}: Friday slots (default: 5)
+\item \textbf{Friday Has Break}: Enable/disable Friday break
+\end{itemize}
+
+\textbf{Solver Settings}:
+\begin{itemize}
+\item \textbf{Solver Timeout}: Maximum solving time in seconds (default: 60)
+\item \textbf{Gap Penalty}: Cost for gaps in schedule (default: 5,000,000)
+\item \textbf{Workload Penalty}: Cost for uneven teacher load (default: 2,000,000)
+\item \textbf{Early Slot Penalty}: Cost for early morning slots (default: 10)
+\item \textbf{Lab Priority Multiplier}: Priority boost for labs (default: 50)
+\end{itemize}
+
+\section{Generating Timetables}
+
+\subsection{Pre-Generation Checklist}
+
+Before generating a timetable, ensure:
+\begin{enumerate}
+\item All departments, batches, and sections are created
+\item All teachers are added
+\item All subjects are defined
+\item All rooms are available
+\item Assignment session is created
+\item All assignments are entered
+\item Teacher restrictions are configured (if any)
+\item Section preferences are set (if any)
+\end{enumerate}
+
+\subsection{Generating a Timetable}
+
+\textbf{To generate a timetable}:
+\begin{enumerate}
+\item Click "Timetables" in the sidebar
+\item Click "Generate New Timetable" button
+\item In the generation dialog:
+\begin{itemize}
+\item Enter timetable name (e.g., "Fall 2025 - CE Department")
+\item Enter semester info (optional description)
+\item Select assignment session
+\item Select target batches (or leave empty for all batches)
+\item Configure advanced options:
+\begin{itemize}
+\item \textit{Allow Friday Labs}: Enable lab scheduling on Friday
+\item \textit{Lab is Last}: No theory classes after lab on same day
+\item \textit{Prefer Early Dismissal}: Minimize afternoon slots
+\end{itemize}
+\end{itemize}
+\item Click "Generate"
+\item Wait for solver to complete (up to 60 seconds)
+\end{enumerate}
+
+\textbf{Generation Results}:
+
+The solver will return one of three outcomes:
+
+\begin{itemize}
+\item \textbf{OPTIMAL}: Perfect solution found - all constraints satisfied optimally
+\item \textbf{FEASIBLE}: Valid solution found - all hard constraints satisfied, soft constraints optimized
+\item \textbf{INFEASIBLE}: No valid solution exists - check constraints
+\end{itemize}
+
+\subsection{Reviewing Generated Timetables}
+
+After generation, review the timetable:
+
+\begin{enumerate}
+\item System redirects to timetable view
+\item Use tabs to switch between sections
+\item Check for:
+\begin{itemize}
+\item Correct number of classes per subject
+\item No scheduling conflicts
+\item Reasonable teacher workloads
+\item Appropriate room assignments
+\item No gaps in student schedules (if no-gaps enabled)
+\end{itemize}
+\end{enumerate}
+
+\textbf{Timetable Actions}:
+\begin{itemize}
+\item \textbf{Activate}: Make this the official schedule (visible to students)
+\item \textbf{Archive}: Move to archive (no longer active)
+\item \textbf{Delete}: Remove completely
+\item \textbf{Export}: Download as PDF or Excel (future feature)
+\end{itemize}
+
+
+\section{Troubleshooting}
+
+\subsection{Infeasible Solutions}
+
+If the solver returns INFEASIBLE, the problem has no valid solution. Common causes and solutions:
+
+\subsubsection{Insufficient Time Slots}
+
+\textbf{Problem}: Total required hours exceed available slots.
+
+\textbf{Diagnosis}:
+\begin{itemize}
+\item Count total theory hours needed
+\item Count total lab hours needed (multiply lab credits by 3)
+\item Compare to available slots per week
+\end{itemize}
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Reduce number of assignments
+\item Increase max slots per day in Settings
+\item Enable Friday labs
+\item Distribute assignments across multiple sessions
+\end{itemize}
+
+\subsubsection{Over-Restricted Teachers}
+
+\textbf{Problem}: Key teachers have too many unavailable slots.
+
+\textbf{Diagnosis}:
+\begin{itemize}
+\item Check teacher restrictions in Restrictions page
+\item Look for teachers with many assignments and many restrictions
+\end{itemize}
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Remove some restrictions
+\item Reassign some subjects to different teachers
+\item Adjust teacher's max contact hours
+\end{itemize}
+
+\subsubsection{Shared Teacher Conflicts}
+
+\textbf{Problem}: Teacher assigned to multiple batches with conflicting constraints.
+
+\textbf{Diagnosis}:
+\begin{itemize}
+\item Identify teachers teaching multiple batches
+\item Check if those batches have strict morning lab requirements
+\item Check if no-gaps is enabled for all sections
+\end{itemize}
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Use different teachers for different batches
+\item Change morning lab mode from "strict" to "prefer"
+\item Disable no-gaps for some sections
+\end{itemize}
+
+\subsubsection{Lab Room Shortage}
+
+\textbf{Problem}: Not enough lab rooms for simultaneous lab sessions.
+
+\textbf{Diagnosis}:
+\begin{itemize}
+\item Count number of lab assignments
+\item Count number of available lab rooms
+\item Check if multiple labs scheduled at same time
+\end{itemize}
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Add more lab rooms in Rooms page
+\item Stagger lab times across different days
+\item Use morning and afternoon lab slots
+\end{itemize}
+
+\subsection{Common Errors}
+
+\subsubsection{Cannot Create Room/Subject/Teacher}
+
+\textbf{Error}: "Duplicate key value violates unique constraint"
+
+\textbf{Cause}: Database sequences out of sync.
+
+\textbf{Solution}: Contact system administrator to run sequence fix script.
+
+\subsubsection{Slow Page Loading}
+
+\textbf{Problem}: Pages take long time to load.
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Clear browser cache
+\item Use latest browser version
+\item Check internet connection
+\item Contact administrator if problem persists
+\end{itemize}
+
+\subsubsection{Cannot Log In}
+
+\textbf{Problem}: Login fails with correct credentials.
+
+\textbf{Solutions}:
+\begin{itemize}
+\item Check username and password carefully (case-sensitive)
+\item Clear browser cookies
+\item Try different browser
+\item Contact administrator to reset password
+\end{itemize}
+
+\section{Best Practices}
+
+\subsection{Data Entry}
+
+\begin{itemize}
+\item \textbf{Use consistent naming}: Follow naming conventions for codes and names
+\item \textbf{Enter data in order}: Departments → Batches → Sections → Teachers → Subjects → Assignments
+\item \textbf{Verify before saving}: Double-check all entries before clicking Save
+\item \textbf{Use bulk upload}: For large datasets, use Excel import features
+\end{itemize}
+
+\subsection{Timetable Generation}
+
+\begin{itemize}
+\item \textbf{Start simple}: Generate for one batch first, then expand
+\item \textbf{Test configurations}: Try different settings to find what works best
+\item \textbf{Review carefully}: Always review generated timetables before activating
+\item \textbf{Keep backups}: Don't delete old timetables immediately
+\item \textbf{Generate early}: Allow time for adjustments before semester starts
+\end{itemize}
+
+\subsection{Maintenance}
+
+\begin{itemize}
+\item \textbf{Update regularly}: Keep teacher and subject data current
+\item \textbf{Archive old data}: Move completed sessions to archive
+\item \textbf{Monitor performance}: Watch for slow queries or errors
+\item \textbf{Backup database}: Regular backups prevent data loss
+\end{itemize}
+
+\section{Frequently Asked Questions}
+
+\subsection{General Questions}
+
+\textbf{Q: Can I generate timetables for multiple departments at once?}
+
+A: Yes, leave the batch selection empty to generate for all batches in the session. However, generating department-by-department often produces better results.
+
+\textbf{Q: How long does timetable generation take?}
+
+A: Typically 10-60 seconds depending on problem size. Small problems (1-2 batches) solve in seconds, large problems (10+ batches) may take the full 60 seconds.
+
+\textbf{Q: Can I modify a generated timetable manually?}
+
+A: Currently, manual editing is not supported. If adjustments are needed, modify the assignments or restrictions and regenerate.
+
+\textbf{Q: What happens if I delete a teacher who has assignments?}
+
+A: The system will prevent deletion. You must first remove or reassign all assignments for that teacher.
+
+\subsection{Technical Questions}
+
+\textbf{Q: What browsers are supported?}
+
+A: Chrome, Firefox, Edge, and Safari (latest versions). Internet Explorer is not supported.
+
+\textbf{Q: Can I access the system from mobile devices?}
+
+A: Yes, the interface is responsive and works on tablets and phones, though desktop is recommended for data entry.
+
+\textbf{Q: Is my data secure?}
+
+A: Yes, all data is encrypted in transit (HTTPS) and at rest. Access is controlled through role-based permissions.
+
+\textbf{Q: Can I export timetables?}
+
+A: PDF and Excel export features are planned for future releases. Currently, you can print from the browser.
+
+\section{Getting Help}
+
+\subsection{Support Resources}
+
+\begin{itemize}
+\item \textbf{This Manual}: Comprehensive guide to all system features
+\item \textbf{System Administrator}: Contact for technical issues
+\item \textbf{Program Administrator}: Contact for department-specific questions
+\item \textbf{Online Help}: Click "?" icon in top-right corner for context-sensitive help
+\end{itemize}
+
+\subsection{Reporting Issues}
+
+When reporting problems, include:
+\begin{itemize}
+\item Your username and role
+\item What you were trying to do
+\item What happened instead
+\item Any error messages (take screenshot if possible)
+\item Browser and operating system
+\end{itemize}
+
+\subsection{Feature Requests}
+
+To suggest new features:
+\begin{itemize}
+\item Contact your system administrator
+\item Describe the desired functionality
+\item Explain how it would benefit users
+\item Provide examples if possible
+\end{itemize}
+
+\appendix
+
+\section{Appendix A: Time Slot Reference}
+
+\subsection{Monday-Thursday Schedule}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{Slot} & \textbf{Time} & \textbf{Duration} \\ \midrule
+0 & 08:30 - 09:30 & 60 min \\
+1 & 09:30 - 10:30 & 60 min \\
+2 & 10:30 - 11:00 & 30 min (Break) \\
+3 & 11:00 - 12:00 & 60 min \\
+4 & 12:00 - 13:00 & 60 min \\
+5 & 13:00 - 14:00 & 60 min \\
+6 & 14:00 - 15:00 & 60 min \\
+7 & 15:00 - 16:00 & 60 min \\
+\bottomrule
+\end{tabular}
+\caption{Monday-Thursday Time Slots}
+\end{table}
+
+\subsection{Friday Schedule}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}clc@{}}
+\toprule
+\textbf{Slot} & \textbf{Time} & \textbf{Duration} \\ \midrule
+0 & 08:30 - 09:30 & 60 min \\
+1 & 09:30 - 10:30 & 60 min \\
+2 & 10:30 - 11:30 & 60 min \\
+3 & 11:30 - 12:30 & 60 min \\
+4 & 12:30 - 13:30 & 60 min \\
+\bottomrule
+\end{tabular}
+\caption{Friday Time Slots (No Break)}
+\end{table}
+
+\section{Appendix B: Quick Reference Card}
+
+\subsection{Common Tasks}
+
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Task} & \textbf{Location} \\ \midrule
+Add teacher & Teachers → Add Teacher \\
+Add subject & Subjects → Add Subject \\
+Create assignment & Assignments → Add Assignment \\
+Set restrictions & Restrictions → Teacher Restrictions \\
+Generate timetable & Timetables → Generate New \\
+View schedule & Timetables → Select timetable \\
+Change password & Profile → Change Password \\
+\bottomrule
+\end{tabular}
+
+\subsection{Keyboard Shortcuts}
+
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Shortcut} & \textbf{Action} \\ \midrule
+Ctrl+S & Save current form \\
+Esc & Close dialog \\
+Ctrl+F & Search/Filter \\
+\bottomrule
+\end{tabular}
+
+\end{document}
