@@ -23,14 +23,53 @@ def list_departments(db: Session = Depends(get_db)):
     return db.query(Department).all()
 
 
+@router.get("/check-sequence")
+def check_department_sequence(db: Session = Depends(get_db),
+                               user=Depends(require_role("super_admin"))):
+    """Check if department sequence is in sync"""
+    from sqlalchemy import text
+    try:
+        result = db.execute(text("SELECT MAX(id) FROM departments")).scalar()
+        max_id = result if result else 0
+        
+        seq_result = db.execute(text("SELECT last_value FROM departments_id_seq")).scalar()
+        seq_value = seq_result if seq_result else 0
+        
+        is_synced = seq_value >= max_id
+        
+        return {
+            "max_id": max_id,
+            "sequence_value": seq_value,
+            "is_synced": is_synced,
+            "message": "Sequence is in sync" if is_synced else "Sequence needs to be fixed"
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.post("/", response_model=DepartmentOut)
 def create_department(data: DepartmentCreate, db: Session = Depends(get_db),
                       user=Depends(require_role("super_admin"))):
-    dept = Department(code=data.code, name=data.name)
-    db.add(dept)
-    db.commit()
-    db.refresh(dept)
-    return dept
+    try:
+        # Check for duplicate code
+        existing = db.query(Department).filter(Department.code == data.code).first()
+        if existing:
+            raise HTTPException(400, f"Department with code '{data.code}' already exists")
+        
+        dept = Department(code=data.code, name=data.name)
+        db.add(dept)
+        db.commit()
+        db.refresh(dept)
+        return dept
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        # Check if it's a sequence/duplicate key error
+        error_msg = str(e)
+        if "duplicate key" in error_msg.lower() or "unique constraint" in error_msg.lower():
+            raise HTTPException(400, "Database error: Duplicate entry detected. Please contact administrator to fix database sequences.")
+        raise HTTPException(500, f"Error creating department: {str(e)}")
 
 
 @router.put("/{dept_id}", response_model=DepartmentOut)

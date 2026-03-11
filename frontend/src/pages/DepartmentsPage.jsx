@@ -27,7 +27,11 @@ export default function DepartmentsPage() {
             }
             loadDepartments();
             resetForm();
-        } catch (err) { alert(err.response?.data?.detail || 'Error saving department'); }
+        } catch (err) { 
+            console.error('Department save error:', err);
+            const errorMsg = err.response?.data?.detail || err.message || 'Error saving department';
+            alert(errorMsg);
+        }
     };
 
     const handleDelete = async (id) => {
