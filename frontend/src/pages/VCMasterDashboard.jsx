@@ -938,38 +938,32 @@ export default function VCMasterDashboard() {
                                                     </span>
                                                 </div>
                                                 <div className="space-y-2 text-sm text-slate-600">
-                                                    <p className="text-xs text-slate-500">{group.department_name}</p>
+                                                    <p className="text-xs text-slate-500 mb-2">{group.department_name}</p>
                                                     
-                                                    {/* Show subjects being taught */}
-                                                    <div className="mt-2">
-                                                        <p className="text-xs font-medium text-slate-500 mb-1">Current Classes:</p>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {uniqueSubjects.map((subject, i) => (
-                                                                <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                                                                    {subject}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    {/* Show section details */}
-                                                    <details className="mt-2">
-                                                        <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
-                                                            View section details
-                                                        </summary>
-                                                        <div className="mt-2 space-y-1 pl-2 border-l-2 border-slate-200">
-                                                            {group.classes.map((cls, i) => (
-                                                                <div key={i} className="text-xs">
-                                                                    <span className="font-medium">{cls.section_name}:</span> {cls.subject_code}
-                                                                    {cls.is_lab && <span className="text-emerald-600"> (Lab)</span>}
-                                                                    <br />
-                                                                    <span className="text-slate-500">
-                                                                        {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name} • {cls.room_name || 'TBA'}
-                                                                    </span>
+                                                    {/* Show all section details directly */}
+                                                    <div className="space-y-2 border-t border-slate-100 pt-2">
+                                                        {group.classes.map((cls, i) => (
+                                                            <div key={i} className="bg-slate-50 rounded-lg p-2 border border-slate-200">
+                                                                <div className="flex items-start justify-between mb-1">
+                                                                    <span className="font-bold text-slate-800 text-sm">{cls.section_name}</span>
+                                                                    {cls.is_lab && (
+                                                                        <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded">
+                                                                            LAB
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                            ))}
-                                                        </div>
-                                                    </details>
+                                                                <div className="space-y-0.5 text-xs text-slate-600">
+                                                                    <p><span className="font-medium text-blue-600">{cls.subject_code}</span></p>
+                                                                    <p className="text-slate-500">
+                                                                        👤 {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name}
+                                                                    </p>
+                                                                    <p className="text-slate-500">
+                                                                        📍 {cls.room_name || 'TBA'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
