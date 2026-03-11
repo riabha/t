@@ -859,7 +859,31 @@ export default function VCMasterDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                 <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                                Classes Happening Now ({liveClassFilter === 'all' ? liveClasses.length : liveClasses.filter(c => c.department_id === parseInt(liveClassFilter)).length})
+                                Classes Happening Now ({(() => {
+                                    const filteredClasses = liveClassFilter === 'all' 
+                                        ? liveClasses 
+                                        : liveClasses.filter(c => c.department_id === parseInt(liveClassFilter));
+                                    
+                                    // Count unique batches instead of individual classes
+                                    const uniqueBatches = new Set(
+                                        filteredClasses.map(cls => {
+                                            const batchKey = cls.section_name ? cls.section_name.split('-')[0] : 'Unknown';
+                                            return `${cls.department_id}_${batchKey}`;
+                                        })
+                                    );
+                                    return uniqueBatches.size;
+                                })()} {(() => {
+                                    const filteredClasses = liveClassFilter === 'all' 
+                                        ? liveClasses 
+                                        : liveClasses.filter(c => c.department_id === parseInt(liveClassFilter));
+                                    const uniqueBatches = new Set(
+                                        filteredClasses.map(cls => {
+                                            const batchKey = cls.section_name ? cls.section_name.split('-')[0] : 'Unknown';
+                                            return `${cls.department_id}_${batchKey}`;
+                                        })
+                                    );
+                                    return uniqueBatches.size === 1 ? 'Batch' : 'Batches';
+                                })()})
                             </h2>
                             <select
                                 value={liveClassFilter}
@@ -878,26 +902,78 @@ export default function VCMasterDashboard() {
                                 ? liveClasses 
                                 : liveClasses.filter(c => c.department_id === parseInt(liveClassFilter));
                             
-                            return filteredClasses.length > 0 ? (
+                            // Group classes by batch (year + department) to avoid showing multiple sections
+                            const groupedByBatch = {};
+                            filteredClasses.forEach(cls => {
+                                // Extract batch info from section name (e.g., "22CE-A" -> "22CE")
+                                const batchKey = cls.section_name ? cls.section_name.split('-')[0] : 'Unknown';
+                                const key = `${cls.department_id}_${batchKey}`;
+                                
+                                if (!groupedByBatch[key]) {
+                                    groupedByBatch[key] = {
+                                        batchName: batchKey,
+                                        department_name: cls.department_name,
+                                        department_id: cls.department_id,
+                                        classes: []
+                                    };
+                                }
+                                groupedByBatch[key].classes.push(cls);
+                            });
+                            
+                            const batchGroups = Object.values(groupedByBatch);
+                            
+                            return batchGroups.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                    {filteredClasses.map((cls, idx) => (
-                                        <div key={idx} className="bg-white rounded-lg border-2 border-green-200 p-4 hover:shadow-md transition-shadow">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <h3 className="font-bold text-slate-800">{cls.subject_code}</h3>
-                                                {cls.is_lab && (
-                                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">
-                                                        LAB
+                                    {batchGroups.map((group, idx) => {
+                                        // Get unique subjects being taught to this batch
+                                        const uniqueSubjects = [...new Set(group.classes.map(c => c.subject_code))];
+                                        const sectionsCount = group.classes.length;
+                                        
+                                        return (
+                                            <div key={idx} className="bg-white rounded-lg border-2 border-green-200 p-4 hover:shadow-md transition-shadow">
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <h3 className="font-bold text-slate-800">{group.batchName}</h3>
+                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
+                                                        {sectionsCount} {sectionsCount === 1 ? 'Section' : 'Sections'}
                                                     </span>
-                                                )}
+                                                </div>
+                                                <div className="space-y-2 text-sm text-slate-600">
+                                                    <p className="text-xs text-slate-500">{group.department_name}</p>
+                                                    
+                                                    {/* Show subjects being taught */}
+                                                    <div className="mt-2">
+                                                        <p className="text-xs font-medium text-slate-500 mb-1">Current Classes:</p>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {uniqueSubjects.map((subject, i) => (
+                                                                <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded">
+                                                                    {subject}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Show section details */}
+                                                    <details className="mt-2">
+                                                        <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
+                                                            View section details
+                                                        </summary>
+                                                        <div className="mt-2 space-y-1 pl-2 border-l-2 border-slate-200">
+                                                            {group.classes.map((cls, i) => (
+                                                                <div key={i} className="text-xs">
+                                                                    <span className="font-medium">{cls.section_name}:</span> {cls.subject_code}
+                                                                    {cls.is_lab && <span className="text-emerald-600"> (Lab)</span>}
+                                                                    <br />
+                                                                    <span className="text-slate-500">
+                                                                        {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name} • {cls.room_name || 'TBA'}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </details>
+                                                </div>
                                             </div>
-                                            <div className="space-y-1 text-sm text-slate-600">
-                                                <p><span className="font-medium">Section:</span> {cls.section_name}</p>
-                                                <p><span className="font-medium">{cls.is_lab ? 'Lab Engineer:' : 'Teacher:'}</span> {cls.is_lab ? cls.lab_engineer_name : cls.teacher_name}</p>
-                                                <p><span className="font-medium">Room:</span> {cls.room_name || 'TBA'}</p>
-                                                <p className="text-xs text-slate-500 mt-2">{cls.department_name}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-12 text-slate-500">
