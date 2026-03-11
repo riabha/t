@@ -169,14 +169,25 @@ export default function VCMasterDashboard() {
                 departmentsCount: departments.length 
             });
             
-            // Get start time from first active timetable
-            const activeTTs = timetables.filter(t => t.status === 'active' || t.status === 'generated');
+            // Get ONLY the latest timetable per department (not all active/generated)
+            const latestTimetables = [];
+            for (const dept of departments) {
+                const deptTTs = timetables.filter(t => t.department_id === dept.id);
+                // Prioritize: latest > active > generated
+                const latestTT = deptTTs.find(t => t.status === 'latest') || 
+                                deptTTs.find(t => t.status === 'active') || 
+                                deptTTs.find(t => t.status === 'generated');
+                if (latestTT) {
+                    latestTimetables.push(latestTT);
+                }
+            }
+            
+            console.log('Latest timetables per department:', latestTimetables.length);
+            
+            // Get start time from first timetable
             let startTime = "08:30"; // Default fallback
-            
-            console.log('Active timetables:', activeTTs.length);
-            
-            if (activeTTs.length > 0 && activeTTs[0].start_time) {
-                startTime = activeTTs[0].start_time;
+            if (latestTimetables.length > 0 && latestTimetables[0].start_time) {
+                startTime = latestTimetables[0].start_time;
             }
             
             const { day, slot } = getCurrentDayAndSlot(startTime);
@@ -192,7 +203,7 @@ export default function VCMasterDashboard() {
 
             const allClasses = [];
             
-            for (const tt of activeTTs) {
+            for (const tt of latestTimetables) {
                 try {
                     const res = await api.get(`/timetable/${tt.id}`);
                     const slots = res.data.slots || [];
@@ -203,7 +214,7 @@ export default function VCMasterDashboard() {
                         !s.is_break
                     );
 
-                    console.log(`Timetable ${tt.id}: ${currentSlots.length} classes in current slot`);
+                    console.log(`Timetable ${tt.id} (${tt.name}): ${currentSlots.length} classes in current slot`);
 
                     currentSlots.forEach(s => {
                         allClasses.push({
