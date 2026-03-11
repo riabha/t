@@ -825,3 +825,584 @@ git pull origin main && docker-compose down && docker-compose up -d
 **Status:** Production Ready ✅
 
 Keep this document safe and updated. It contains all critical information for deploying and maintaining the QUEST Timetable System.
+
+
+---
+
+## 🔄 COMPLETE DEPLOYMENT WORKFLOW (Updated March 11, 2026)
+
+### Understanding the Development vs Production Setup
+
+#### Local Development (Your Machine)
+- **Database:** SQLite (file-based: `backend/timetable.db`)
+- **Why:** Simple, no setup needed, good for development
+- **Future Plan:** Will migrate to PostgreSQL for consistency
+
+#### Production Server (Contabo)
+- **Database:** PostgreSQL 15 (Docker container)
+- **Why:** Production-grade, handles concurrent users, better performance
+- **Data Location:** Docker volume `timetable_postgres_data`
+
+### Standard Deployment Process (Step-by-Step)
+
+#### Step 1: Make Changes Locally (Kiro/Cursor/Antigravity)
+```bash
+# Work on your code locally
+# Test changes with SQLite database
+# When ready to deploy, commit changes
+```
+
+#### Step 2: Commit and Push to GitHub
+```bash
+# Add all changes
+git add .
+
+# Commit with descriptive message
+git commit -m "Description of changes made"
+
+# Push to GitHub
+git push origin main
+```
+
+#### Step 3: Deploy to Production Server
+
+**ONE-LINE DEPLOYMENT COMMAND (Copy to aaPanel Terminal):**
+```bash
+cd /www/wwwroot/timetable && git pull origin main && docker-compose down && docker-compose up -d --build && sleep 15 && docker-compose ps
+```
+
+**What this does:**
+1. Navigate to project directory
+2. Pull latest code from GitHub
+3. Stop all containers
+4. Rebuild containers with new code
+5. Start all containers
+6. Wait 15 seconds for startup
+7. Show container status
+
+#### Step 4: Verify Deployment
+```bash
+# Check container status
+docker-compose ps
+
+# Check backend logs
+docker-compose logs backend --tail=30
+
+# Check frontend logs
+docker-compose logs frontend --tail=30
+
+# Test the website
+# Open: http://194.60.87.212:3100
+```
+
+---
+
+## 🚨 COMMON DEPLOYMENT ISSUES & SOLUTIONS (March 11, 2026)
+
+### Issue 1: Git Divergent Branches Error
+**Error Message:**
+```
+fatal: Need to specify how to reconcile divergent branches.
+```
+
+**Solution:**
+```bash
+cd /www/wwwroot/timetable
+git fetch origin
+git reset --hard origin/main
+docker-compose down
+docker-compose up -d --build
+```
+
+**Why:** Local server changes conflict with GitHub. This resets server to match GitHub exactly.
+
+---
+
+### Issue 2: Wrong docker-compose.yml (SQLite instead of PostgreSQL)
+**Symptoms:**
+- Backend logs show: `sqlite3.OperationalError: unable to open database file`
+- Containers keep restarting
+- Can't connect to database
+
+**Check if you have this problem:**
+```bash
+cd /www/wwwroot/timetable
+cat docker-compose.yml | grep -i sqlite
+```
+
+If you see "sqlite" in the output, your docker-compose.yml is wrong!
+
+**Solution - Restore Correct docker-compose.yml:**
+```bash
+cd /www/wwwroot/timetable
+
+# Create correct docker-compose.yml
+cat > docker-compose.yml << 'EOF'
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: tt-postgres
+    environment:
+      POSTGRES_USER: timetable_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: timetable_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - timetable-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timetable_user -d timetable_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: tt-backend
+    environment:
+      - DATABASE_URL=postgresql://timetable_user:${DB_PASSWORD}@db:5432/timetable_db
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - timetable-network
+
+  frontend:
+    build: ./frontend
+    container_name: tt-frontend
+    ports:
+      - "3100:80"
+    depends_on:
+      - backend
+    networks:
+      - timetable-network
+
+volumes:
+  postgres_data:
+
+networks:
+  timetable-network:
+    driver: bridge
+EOF
+
+# Restart everything
+docker-compose up -d
+sleep 15
+docker-compose ps
+```
+
+---
+
+### Issue 3: API Endpoints Return 404 (Nginx Proxy Issue)
+**Symptoms:**
+- Website loads but can't login
+- All API calls fail with 404
+- Frontend logs show: `GET /api/auth/login HTTP/1.1" 404`
+
+**Root Cause:** Nginx proxy configuration has trailing slash that strips `/api` prefix
+
+**Check nginx config:**
+```bash
+docker exec tt-frontend cat /etc/nginx/conf.d/default.conf
+```
+
+**Look for this WRONG config:**
+```nginx
+location /api/ {
+    proxy_pass http://backend:8000/;  # ❌ WRONG - trailing slash strips /api
+}
+```
+
+**Should be:**
+```nginx
+location /api/ {
+    proxy_pass http://backend:8000;  # ✅ CORRECT - no trailing slash
+}
+```
+
+**Solution:**
+1. Fix `frontend/Dockerfile` in your local code
+2. Commit and push to GitHub
+3. Redeploy on server
+
+**Quick Fix on Server (Temporary):**
+```bash
+cd /www/wwwroot/timetable
+docker exec tt-frontend sh -c "sed -i 's|proxy_pass http://backend:8000/;|proxy_pass http://backend:8000;|g' /etc/nginx/conf.d/default.conf"
+docker-compose restart frontend
+```
+
+---
+
+### Issue 4: Database Sequence Out of Sync (Can't Create New Records)
+**Symptoms:**
+- Can't create new departments, teachers, etc.
+- Error: "duplicate key value violates unique constraint"
+- Error mentions sequence or primary key
+
+**Solution - Fix All Sequences:**
+```bash
+# Method 1: Using Python script (if available)
+docker exec tt-backend python fix_sequences.py
+
+# Method 2: Fix specific table (e.g., departments)
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "SELECT setval('departments_id_seq', COALESCE((SELECT MAX(id) FROM departments), 1), true);"
+
+# Method 3: Fix all common tables manually
+docker exec tt-postgres psql -U timetable_user -d timetable_db << 'EOF'
+SELECT setval('departments_id_seq', COALESCE((SELECT MAX(id) FROM departments), 1), true);
+SELECT setval('teachers_id_seq', COALESCE((SELECT MAX(id) FROM teachers), 1), true);
+SELECT setval('subjects_id_seq', COALESCE((SELECT MAX(id) FROM subjects), 1), true);
+SELECT setval('batches_id_seq', COALESCE((SELECT MAX(id) FROM batches), 1), true);
+SELECT setval('sections_id_seq', COALESCE((SELECT MAX(id) FROM sections), 1), true);
+SELECT setval('rooms_id_seq', COALESCE((SELECT MAX(id) FROM rooms), 1), true);
+SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);
+EOF
+```
+
+---
+
+### Issue 5: Containers Keep Restarting
+**Check what's wrong:**
+```bash
+cd /www/wwwroot/timetable
+docker-compose ps
+docker-compose logs backend --tail=50
+docker-compose logs frontend --tail=50
+docker-compose logs db --tail=50
+```
+
+**Common causes:**
+1. **Database not ready:** Backend tries to connect before PostgreSQL is ready
+   - Solution: Wait 30 seconds and check again
+   
+2. **Wrong DATABASE_URL:** Backend can't connect to database
+   - Check: `docker-compose logs backend | grep -i database`
+   - Solution: Verify `.env` file and docker-compose.yml
+   
+3. **Port conflicts:** Another service using the same port
+   - Check: `netstat -tulpn | grep -E '3100|8000|5432'`
+   - Solution: Stop conflicting service or change port
+
+---
+
+### Issue 6: Lost Connection / Can't Login After Deployment
+**This is NORMAL after deployment!**
+
+**Why it happens:**
+- Your browser has old JWT token
+- Backend restarted, tokens invalidated
+- Session expired
+
+**Solution:**
+1. Clear browser cache/cookies OR
+2. Open in incognito/private window OR
+3. Just login again with your credentials
+
+**Your data is safe!** The PostgreSQL database volume is never touched during deployment.
+
+---
+
+## 📋 DEPLOYMENT CHECKLIST
+
+### Before Deploying
+- [ ] All changes committed locally
+- [ ] Code tested on local machine
+- [ ] Git status clean (`git status`)
+- [ ] Ready to push to GitHub
+
+### During Deployment
+- [ ] Push to GitHub successful
+- [ ] SSH/aaPanel terminal connected to server
+- [ ] Run deployment command
+- [ ] Wait for build to complete (2-5 minutes)
+- [ ] Check container status
+
+### After Deployment
+- [ ] All 3 containers running (db, backend, frontend)
+- [ ] No errors in logs
+- [ ] Website accessible at http://194.60.87.212:3100
+- [ ] Can login successfully
+- [ ] Test the feature you deployed
+
+### If Something Goes Wrong
+- [ ] Check logs: `docker-compose logs --tail=100`
+- [ ] Verify containers: `docker-compose ps`
+- [ ] Check this troubleshooting guide
+- [ ] Rollback if needed (see below)
+
+---
+
+## 🔙 ROLLBACK PROCEDURE
+
+### Quick Rollback (Go Back One Commit)
+```bash
+cd /www/wwwroot/timetable
+git log --oneline -5  # See recent commits
+git reset --hard HEAD~1  # Go back one commit
+docker-compose down
+docker-compose up -d --build
+sleep 15
+docker-compose ps
+```
+
+### Rollback to Specific Commit
+```bash
+cd /www/wwwroot/timetable
+git log --oneline -10  # Find the commit hash you want
+git reset --hard <commit-hash>  # e.g., git reset --hard 02a1109
+docker-compose down
+docker-compose up -d --build
+sleep 15
+docker-compose ps
+```
+
+### Emergency: Restore from Backup
+```bash
+cd /www/wwwroot/timetable
+
+# Stop everything
+docker-compose down
+
+# Restore database from backup
+gunzip < /www/wwwroot/timetable/backups/backup_LATEST.sql.gz | docker exec -i tt-postgres psql -U timetable_user -d timetable_db
+
+# Start everything
+docker-compose up -d
+```
+
+---
+
+## 🔍 DEBUGGING COMMANDS
+
+### Check Container Status
+```bash
+docker-compose ps
+docker ps -a
+docker stats tt-backend tt-frontend tt-postgres
+```
+
+### View Logs
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service with tail
+docker-compose logs backend --tail=50
+docker-compose logs frontend --tail=30
+docker-compose logs db --tail=20
+
+# Follow logs in real-time
+docker-compose logs -f backend
+
+# Search for errors
+docker-compose logs | grep -i error
+docker-compose logs backend | grep -i "database\|connection"
+```
+
+### Test Database Connection
+```bash
+# Check if PostgreSQL is running
+docker exec tt-postgres pg_isready -U timetable_user -d timetable_db
+
+# Connect to database
+docker exec -it tt-postgres psql -U timetable_user -d timetable_db
+
+# Inside psql:
+\dt                    # List tables
+\d departments         # Describe departments table
+SELECT COUNT(*) FROM departments;
+SELECT * FROM departments LIMIT 5;
+\q                     # Quit
+```
+
+### Test API Endpoints
+```bash
+# Health check
+curl http://localhost:3100/api/health
+
+# API documentation
+curl http://localhost:3100/api/docs
+
+# Test specific endpoint
+curl http://localhost:3100/api/public/departments
+```
+
+### Check Nginx Configuration
+```bash
+# View nginx config
+docker exec tt-frontend cat /etc/nginx/conf.d/default.conf
+
+# Test nginx config syntax
+docker exec tt-frontend nginx -t
+
+# Reload nginx
+docker-compose restart frontend
+```
+
+### Network Debugging
+```bash
+# Check ports
+netstat -tulpn | grep -E '3100|8000|5432'
+
+# Check Docker networks
+docker network ls
+docker network inspect timetable-network
+
+# Check if containers can communicate
+docker exec tt-backend ping -c 3 db
+docker exec tt-frontend ping -c 3 backend
+```
+
+---
+
+## 📊 DATABASE MANAGEMENT
+
+### Current Setup: PostgreSQL on Production, SQLite on Local
+
+#### Why Different Databases?
+- **Local (SQLite):** 
+  - Simple file-based database
+  - No setup required
+  - Good for development
+  - File: `backend/timetable.db`
+  
+- **Production (PostgreSQL):**
+  - Production-grade database
+  - Handles concurrent users
+  - Better performance
+  - ACID compliant
+  - Docker volume: `timetable_postgres_data`
+
+#### Future Plan: PostgreSQL Everywhere
+**Benefits:**
+- Same database in development and production
+- Catch database-specific issues early
+- Test migrations properly
+- No surprises during deployment
+
+**To migrate local to PostgreSQL:**
+1. Install PostgreSQL locally or use Docker
+2. Update `backend/database.py` to use PostgreSQL URL
+3. Export SQLite data and import to PostgreSQL
+4. Update `.env` file
+
+### Database Backup Best Practices
+```bash
+# Daily automated backup (add to crontab)
+0 2 * * * docker exec tt-postgres pg_dump -U timetable_user -d timetable_db | gzip > /www/wwwroot/timetable/backups/daily_$(date +\%Y\%m\%d).sql.gz
+
+# Manual backup before major changes
+docker exec tt-postgres pg_dump -U timetable_user -d timetable_db | gzip > /www/wwwroot/timetable/backups/before_deployment_$(date +%Y%m%d_%H%M%S).sql.gz
+
+# Keep last 7 days only
+find /www/wwwroot/timetable/backups -name "daily_*.sql.gz" -mtime +7 -delete
+```
+
+---
+
+## 🎯 QUICK REFERENCE COMMANDS
+
+### Most Common Commands
+```bash
+# Navigate to project
+cd /www/wwwroot/timetable
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f backend
+
+# Restart service
+docker-compose restart backend
+
+# Full deployment
+git pull origin main && docker-compose down && docker-compose up -d --build
+
+# Fix sequences
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "SELECT setval('departments_id_seq', COALESCE((SELECT MAX(id) FROM departments), 1), true);"
+
+# Backup database
+docker exec tt-postgres pg_dump -U timetable_user -d timetable_db | gzip > backups/backup_$(date +%Y%m%d).sql.gz
+```
+
+---
+
+## 📝 IMPORTANT NOTES FOR FUTURE DEPLOYMENTS
+
+### Always Remember:
+1. **Commit and push from local machine FIRST**
+2. **Then pull and deploy on server**
+3. **Never edit code directly on server**
+4. **Always backup before major changes**
+5. **Test locally before deploying**
+
+### Git Workflow:
+```
+Local Machine (Kiro/Cursor/Antigravity)
+    ↓ (make changes)
+    ↓ (git add, commit)
+    ↓ (git push)
+GitHub Repository
+    ↓ (git pull)
+Production Server (Contabo)
+    ↓ (docker-compose rebuild)
+Live Website
+```
+
+### Database Safety:
+- ✅ `docker-compose down` - SAFE (preserves data)
+- ✅ `docker-compose restart` - SAFE (preserves data)
+- ✅ `docker-compose up -d --build` - SAFE (preserves data)
+- ❌ `docker-compose down -v` - DANGEROUS (deletes data!)
+- ❌ `docker volume prune` - DANGEROUS (deletes all volumes!)
+
+### When to Worry:
+- ❌ Containers keep restarting
+- ❌ 404 errors on all API calls
+- ❌ Can't connect to database
+- ❌ Sequence/duplicate key errors
+
+### When NOT to Worry:
+- ✅ Need to login again after deployment (normal)
+- ✅ Build takes 2-5 minutes (normal)
+- ✅ Containers restart once during deployment (normal)
+
+---
+
+## 🆘 EMERGENCY CONTACTS & RESOURCES
+
+### If Everything Breaks:
+1. **Don't panic!** Your data is safe in the PostgreSQL volume
+2. Check this guide's troubleshooting section
+3. Check logs: `docker-compose logs --tail=100`
+4. Try rollback procedure
+5. Restore from backup if needed
+
+### Useful Resources:
+- **Git Repository:** https://github.com/riabha/t
+- **Server IP:** 194.60.87.212
+- **Website:** http://194.60.87.212:3100
+- **API Docs:** http://194.60.87.212:3100/api/docs
+
+### Server Access:
+- **SSH:** `ssh root@194.60.87.212`
+- **aaPanel:** Access through Contabo control panel
+- **Project Path:** `/www/wwwroot/timetable`
+
+---
+
+**LAST UPDATED:** March 11, 2026  
+**VERSION:** 2.0  
+**STATUS:** Production Ready ✅
+
+**CHANGELOG:**
+- March 11, 2026: Added complete deployment workflow, troubleshooting guide, database management section
+- March 10, 2026: Initial version with basic deployment commands
+
+---
+
+**Keep this document updated whenever you make infrastructure changes!**
