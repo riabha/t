@@ -283,6 +283,72 @@ def update_timetable(tt_id: int, req: TimetableUpdate, db: Session = Depends(get
     return {"ok": True, "status": tt.status, "name": tt.name}
 
 
+@router.post("/create")
+def create_timetable(data: dict, db: Session = Depends(get_db),
+                     user=Depends(require_role("super_admin", "program_admin"))):
+    """Create a new empty timetable for manual editing."""
+    name = data.get("name")
+    department_id = data.get("department_id")
+    session_id = data.get("session_id")
+    
+    if not name:
+        raise HTTPException(400, "Timetable name is required")
+    if not department_id:
+        raise HTTPException(400, "Department is required")
+    
+    # Permission check for program_admin
+    if user.role == "program_admin":
+        if user.department_id != department_id:
+            raise HTTPException(403, "You can only create timetables for your department")
+    
+    # Create new timetable
+    tt = Timetable(
+        name=name,
+        department_id=department_id,
+        session_id=session_id,
+        created_by_id=user.id,
+        status="draft",
+        class_duration=60,
+        break_start_time="11:00",
+        break_end_time="11:30",
+        max_slots_per_day=8,
+        break_slot=2,
+        friday_has_break=True
+    )
+    db.add(tt)
+    db.commit()
+    db.refresh(tt)
+    
+    return {"id": tt.id, "name": tt.name, "status": tt.status}
+
+
+@router.post("/{tt_id}/mark-latest")
+def mark_as_latest(tt_id: int, db: Session = Depends(get_db),
+                   user=Depends(require_role("super_admin", "program_admin"))):
+    """Mark a timetable as 'latest' (current active timetable)."""
+    tt = db.query(Timetable).filter(Timetable.id == tt_id).first()
+    if not tt:
+        raise HTTPException(404, "Timetable not found")
+    
+    # Permission check
+    if user.role == "program_admin":
+        if tt.department_id and tt.department_id != user.department_id:
+            raise HTTPException(403, "You can only manage timetables for your department")
+    
+    # Set all other timetables in this department to 'archived'
+    db.query(Timetable).filter(
+        Timetable.department_id == tt.department_id,
+        Timetable.id != tt_id,
+        Timetable.status == "latest"
+    ).update({"status": "archived"})
+    
+    # Mark this one as latest
+    tt.status = "latest"
+    db.commit()
+    
+    return {"ok": True, "message": f"Timetable '{tt.name}' is now marked as Latest"}
+
+
 @router.get("/{tt_id}")
 def get_timetable(tt_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     tt = db.query(Timetable).filter(Timetable.id == tt_id).first()

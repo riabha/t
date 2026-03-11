@@ -20,6 +20,8 @@ export default function ManualTimetablePage() {
     const [selectedBatchId, setSelectedBatchId] = useState('');
     const [draggedItem, setDraggedItem] = useState(null);
     const [assignments, setAssignments] = useState([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newTimetableName, setNewTimetableName] = useState('');
 
     useEffect(() => {
         loadData();
@@ -111,6 +113,52 @@ export default function ManualTimetablePage() {
         setActiveTT(id);
         const res = await api.get(`/timetable/${id}`);
         setTTData(res.data);
+    };
+
+    const handleCreateTimetable = async () => {
+        if (!newTimetableName.trim()) {
+            alert('Please enter a timetable name');
+            return;
+        }
+        if (!selectedDept) {
+            alert('Please select a department first');
+            return;
+        }
+        
+        try {
+            const res = await api.post('/timetable/create', {
+                name: newTimetableName,
+                department_id: parseInt(selectedDept),
+                session_id: selectedSessionId ? parseInt(selectedSessionId) : null
+            });
+            
+            setShowCreateModal(false);
+            setNewTimetableName('');
+            await loadData();
+            loadTimetable(res.data.id);
+            alert('Timetable created successfully!');
+        } catch (e) {
+            alert(e.response?.data?.detail || 'Failed to create timetable');
+        }
+    };
+
+    const handleMarkAsLatest = async () => {
+        if (!activeTT) {
+            alert('No timetable selected');
+            return;
+        }
+        
+        if (!confirm('Mark this timetable as Latest? This will make it the current active timetable for this department.')) {
+            return;
+        }
+        
+        try {
+            await api.post(`/timetable/${activeTT}/mark-latest`);
+            await loadData();
+            alert('Timetable marked as Latest!');
+        } catch (e) {
+            alert(e.response?.data?.detail || 'Failed to mark as latest');
+        }
     };
 
     const handleDrop = async (sectionId, day, slotIndex) => {
@@ -303,7 +351,79 @@ export default function ManualTimetablePage() {
 
     return (
         <div className="space-y-4">
-            <h1 className="text-xl font-bold text-slate-800">Manual Timetable Editor</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold text-slate-800">Manual Timetable Editor</h1>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowCreateModal(true)}
+                        className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700">
+                        + Create New Timetable
+                    </button>
+                    {activeTT && ttData && (
+                        <button onClick={handleMarkAsLatest}
+                            className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">
+                            ⭐ Mark as Latest
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Create Timetable Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                        <h2 className="text-lg font-bold text-slate-800 mb-4">Create New Timetable</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Timetable Name</label>
+                                <input
+                                    type="text"
+                                    value={newTimetableName}
+                                    onChange={e => setNewTimetableName(e.target.value)}
+                                    placeholder="e.g., Spring 2026 Manual"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Department</label>
+                                <select
+                                    value={selectedDept}
+                                    onChange={e => setSelectedDept(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                >
+                                    <option value="">Select Department</option>
+                                    {departments.filter(d => !user?.department_id || d.id === user.department_id)
+                                        .map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Session (Optional)</label>
+                                <select
+                                    value={selectedSessionId}
+                                    onChange={e => setSelectedSessionId(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                >
+                                    <option value="">No Session</option>
+                                    {sessions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => { setShowCreateModal(false); setNewTimetableName(''); }}
+                                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateTimetable}
+                                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
+                            >
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Selectors */}
             <div className="glass p-5 flex gap-4 flex-wrap">
