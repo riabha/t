@@ -48,9 +48,9 @@ def public_departments(db: Session = Depends(get_db)):
 
 @router.get("/timetables")
 def public_timetable_list(db: Session = Depends(get_db)):
-    """List all generated and archived timetables — no auth."""
+    """List all generated, latest, draft, and archived timetables — no auth."""
     tts = db.query(Timetable).filter(
-        Timetable.status.in_(["generated", "archived"])
+        Timetable.status.in_(["generated", "latest", "draft", "archived"])
     ).order_by(Timetable.created_at.desc()).all()
     return [
         {"id": t.id, "name": t.name, "created_at": str(t.created_at),

@@ -161,6 +161,34 @@ export default function ManualTimetablePage() {
         }
     };
 
+    const handleToggleFridayBreak = async () => {
+        if (!activeTT || !ttData) return;
+        
+        const newValue = !ttData.friday_has_break;
+        
+        try {
+            await api.put(`/timetable/${activeTT}`, {
+                friday_has_break: newValue
+            });
+            
+            // Reload timetable
+            await loadTimetable(activeTT);
+            
+            // If disabling Friday breaks, remove all Friday breaks
+            if (!newValue) {
+                const fridayBreaks = ttData.slots?.filter(s => s.day === 4 && s.is_break) || [];
+                for (const breakSlot of fridayBreaks) {
+                    await api.delete(`/timetable/slot/${breakSlot.id}`);
+                }
+                await loadTimetable(activeTT);
+            }
+            
+            alert(`Friday breaks ${newValue ? 'enabled' : 'disabled'} successfully!`);
+        } catch (e) {
+            alert(e.response?.data?.detail || 'Failed to update Friday break setting');
+        }
+    };
+
     const handleDrop = async (sectionId, day, slotIndex) => {
         if (!draggedItem || !activeTT) return;
 
@@ -237,13 +265,29 @@ export default function ManualTimetablePage() {
         }
     };
     
-    // Manage break position based on morning labs
+    // Manage break position based on morning labs and Friday configuration
     const manageBreaks = async (sectionId, day) => {
         if (!ttData || !activeTT) return;
         
         // Get FRESH timetable data
         const freshData = await api.get(`/timetable/${activeTT}`);
         const freshSlots = freshData.data.slots || [];
+        
+        // Check if Friday has break enabled
+        const isFriday = day === 4;
+        const fridayHasBreak = freshData.data.friday_has_break ?? true;
+        
+        // If Friday and breaks are disabled, remove any existing break and return
+        if (isFriday && !fridayHasBreak) {
+            const existingBreak = freshSlots.find(s => 
+                s.section_id === sectionId && s.day === day && s.is_break
+            );
+            if (existingBreak) {
+                await api.delete(`/timetable/slot/${existingBreak.id}`);
+                await loadTimetable(activeTT);
+            }
+            return;
+        }
         
         // Get current slots for this section/day (excluding breaks)
         const sectionSlots = freshSlots.filter(s => 
@@ -354,6 +398,16 @@ export default function ManualTimetablePage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold text-slate-800">Manual Timetable Editor</h1>
                 <div className="flex gap-2">
+                    {activeTT && ttData && (
+                        <button onClick={handleToggleFridayBreak}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                                ttData.friday_has_break 
+                                    ? 'bg-amber-600 text-white hover:bg-amber-700' 
+                                    : 'bg-slate-600 text-white hover:bg-slate-700'
+                            }`}>
+                            {ttData.friday_has_break ? '🕐 Friday Break: ON' : '🚫 Friday Break: OFF'}
+                        </button>
+                    )}
                     <button onClick={() => setShowCreateModal(true)}
                         className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700">
                         + Create New Timetable

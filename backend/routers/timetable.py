@@ -301,13 +301,13 @@ def create_timetable(data: dict, db: Session = Depends(get_db),
         if user.department_id != department_id:
             raise HTTPException(403, "You can only create timetables for your department")
     
-    # Create new timetable
+    # Create new timetable with status="latest" so it's immediately visible
     tt = Timetable(
         name=name,
         department_id=department_id,
         session_id=session_id,
         created_by_id=user.id,
-        status="draft",
+        status="latest",  # Changed from "draft" to "latest" for immediate visibility
         class_duration=60,
         break_start_time="11:00",
         break_end_time="11:30",
