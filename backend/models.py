@@ -3,7 +3,7 @@ SQLAlchemy ORM models for the Timetable Portal.
 """
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, Boolean, JSON, DateTime, Text,
-    UniqueConstraint, BigInteger, func
+    UniqueConstraint, BigInteger, func, Date
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime

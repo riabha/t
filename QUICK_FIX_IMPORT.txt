@@ -1,0 +1,15 @@
+QUICK FIX - Missing Import
+
+Issue: Backend container crashed due to missing Date import in models.py
+
+Fix: Added Date to SQLAlchemy imports
+
+Run this to deploy:
+```bash
+cd /www/wwwroot/timetable && git pull origin main && docker-compose down && docker-compose up -d --build && sleep 15 && docker-compose ps && docker-compose logs backend --tail=30
+```
+
+If backend is running, then run migration:
+```bash
+docker exec tt-backend python migrations/add_makeup_system.py
+```
