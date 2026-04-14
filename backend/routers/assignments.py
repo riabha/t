@@ -103,29 +103,16 @@ def _enrich(a: Assignment, db: Session, sections_map: Dict[int, str] = None) -> 
 @router.get("/sessions", response_model=list[AssignmentSessionOut])
 def list_sessions(show_archived: bool = False, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """
-    List sessions filtered by user's department.
+    List sessions - now shows ALL sessions regardless of assignments.
     - Super admins see all sessions
-    - Department admins see only sessions with assignments in their department
+    - Department admins see all sessions (changed from filtered view)
     """
     q = db.query(AssignmentSession)
     
     if not show_archived:
         q = q.filter(AssignmentSession.is_archived == False)
     
-    sessions = q.all()
-    
-    # Filter sessions by department (except for super_admin)
-    if user.role != "super_admin" and user.department_id:
-        # Get sessions that have assignments for this department
-        dept_session_ids = db.query(Assignment.session_id).join(
-            Batch, Assignment.batch_id == Batch.id
-        ).filter(
-            Batch.department_id == user.department_id,
-            Assignment.session_id.isnot(None)
-        ).distinct().all()
-        
-        dept_session_ids = {sid[0] for sid in dept_session_ids}
-        sessions = [s for s in sessions if s.id in dept_session_ids]
+    sessions = q.order_by(AssignmentSession.created_at.desc()).all()
     
     # Add department_code to each session for display
     result = []
@@ -134,12 +121,13 @@ def list_sessions(show_archived: bool = False, db: Session = Depends(get_db), us
             "id": session.id,
             "name": session.name,
             "is_archived": session.is_archived,
+            "session_type": session.session_type if hasattr(session, 'session_type') else "regular",
             "department_code": None
         }
         
-        # Get department code from assignments
+        # Get department code from assignments (if any exist)
         if user.department_id:
-            session_dict["department_code"] = db.query(Department.code).join(
+            dept_code_result = db.query(Department.code).join(
                 Batch, Department.id == Batch.department_id
             ).join(
                 Assignment, Batch.id == Assignment.batch_id
@@ -148,8 +136,8 @@ def list_sessions(show_archived: bool = False, db: Session = Depends(get_db), us
                 Department.id == user.department_id
             ).first()
             
-            if session_dict["department_code"]:
-                session_dict["department_code"] = session_dict["department_code"][0]
+            if dept_code_result:
+                session_dict["department_code"] = dept_code_result[0]
         
         result.append(AssignmentSessionOut(**session_dict))
     
@@ -161,14 +149,42 @@ def create_session(data: AssignmentSessionCreate, db: Session = Depends(get_db),
                    user=Depends(require_role("super_admin", "program_admin", "clerk"))):
     """
     Create a new university-wide session.
-    Session names must be unique across the entire university.
+    Allows duplicate names with auto-incrementing suffixes (-1, -2, etc.)
     """
-    # Check if session name already exists
-    existing = db.query(AssignmentSession).filter(AssignmentSession.name == data.name).first()
-    if existing:
-        raise HTTPException(400, f"Session '{data.name}' already exists")
+    base_name = data.name.strip()
+    session_type = "makeup" if "makeup" in base_name.lower() else "regular"
     
-    s = AssignmentSession(name=data.name)
+    # Check for existing sessions with same base name
+    existing_sessions = db.query(AssignmentSession).filter(
+        AssignmentSession.name.like(f"{base_name}%")
+    ).all()
+    
+    # Determine suffix number
+    suffix_number = 0
+    final_name = base_name
+    
+    if existing_sessions:
+        # Find the highest suffix number
+        max_suffix = 0
+        for existing in existing_sessions:
+            if existing.name == base_name:
+                max_suffix = max(max_suffix, 0)
+            elif existing.name.startswith(base_name + "-"):
+                try:
+                    suffix = int(existing.name.split("-")[-1])
+                    max_suffix = max(max_suffix, suffix)
+                except ValueError:
+                    pass
+        
+        # Increment suffix
+        suffix_number = max_suffix + 1
+        final_name = f"{base_name}-{suffix_number}"
+    
+    s = AssignmentSession(
+        name=final_name,
+        session_type=session_type,
+        suffix_number=suffix_number
+    )
     db.add(s)
     db.commit()
     db.refresh(s)

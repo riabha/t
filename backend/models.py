@@ -174,15 +174,19 @@ class AssignmentSession(Base):
     __tablename__ = "assignment_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False, unique=True) # e.g. "Fall 2025" - University-wide
+    name = Column(String(100), nullable=False) # e.g. "Fall 2025", "Even 2026-1", "Makeup-1" - University-wide
     is_archived = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
+    session_type = Column(String(20), default="regular")  # "regular" or "makeup"
+    suffix_number = Column(Integer, default=0)  # For duplicate names: 0 (no suffix), 1, 2, 3...
 
     # Removed department_id - sessions are now university-wide
     # Department filtering is done via assignments
+    # Removed unique=True from name to allow duplicates with suffixes
     
     assignments = relationship("Assignment", back_populates="session", cascade="all, delete-orphan")
     timetables = relationship("Timetable", back_populates="session")
+    makeup_classes = relationship("MakeupClass", back_populates="session", cascade="all, delete-orphan")
 
 
 # ── Assignments (Subject ↔ Teacher ↔ Sections) ─────────────────
@@ -322,3 +326,103 @@ class GlobalConfig(Base):
     lab_rules = Column(JSON, default=list)
     
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ── Makeup Classes (Separate System) ──────────────────────────────
+class Student(Base):
+    __tablename__ = "students"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    roll_number = Column(String(50), nullable=False, unique=True)
+    name = Column(String(200), nullable=False)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False)
+    section_id = Column(Integer, ForeignKey("sections.id"), nullable=True)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    batch = relationship("Batch")
+    section = relationship("Section")
+    department = relationship("Department")
+    makeup_enrollments = relationship("MakeupEnrollment", back_populates="student", cascade="all, delete-orphan")
+
+
+class MakeupClass(Base):
+    __tablename__ = "makeup_classes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("assignment_sessions.id"), nullable=False)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=True)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    
+    # Makeup specific fields
+    reason = Column(String(500), nullable=True)  # Why makeup is needed
+    original_date = Column(Date, nullable=True)  # Date of missed class
+    is_lab = Column(Boolean, default=False)
+    lab_engineer_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    session = relationship("AssignmentSession", back_populates="makeup_classes")
+    subject = relationship("Subject")
+    teacher = relationship("Teacher", foreign_keys=[teacher_id])
+    lab_engineer = relationship("Teacher", foreign_keys=[lab_engineer_id])
+    room = relationship("Room")
+    department = relationship("Department")
+    creator = relationship("User")
+    enrollments = relationship("MakeupEnrollment", back_populates="makeup_class", cascade="all, delete-orphan")
+
+
+class MakeupEnrollment(Base):
+    __tablename__ = "makeup_enrollments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    makeup_class_id = Column(Integer, ForeignKey("makeup_classes.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    enrolled_at = Column(DateTime, default=datetime.utcnow)
+    
+    makeup_class = relationship("MakeupClass", back_populates="enrollments")
+    student = relationship("Student", back_populates="makeup_enrollments")
+
+
+class MakeupTimetable(Base):
+    __tablename__ = "makeup_timetables"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    session_id = Column(Integer, ForeignKey("assignment_sessions.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String(20), default="draft")  # draft, active, archived
+    
+    # Timetable settings (can be different from regular timetables)
+    class_duration = Column(Integer, default=60)
+    start_time = Column(String(50), default="08:30")
+    break_start_time = Column(String(50), nullable=True)
+    break_end_time = Column(String(50), nullable=True)
+    max_slots_per_day = Column(Integer, default=8)
+    break_slot = Column(Integer, default=2)
+    
+    session = relationship("AssignmentSession")
+    department = relationship("Department")
+    creator = relationship("User")
+    slots = relationship("MakeupTimetableSlot", back_populates="timetable", cascade="all, delete-orphan")
+
+
+class MakeupTimetableSlot(Base):
+    __tablename__ = "makeup_timetable_slots"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    timetable_id = Column(Integer, ForeignKey("makeup_timetables.id"), nullable=False)
+    makeup_class_id = Column(Integer, ForeignKey("makeup_classes.id"), nullable=False)
+    day = Column(Integer, nullable=False)  # 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri
+    slot_index = Column(Integer, nullable=False)
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=True)
+    
+    timetable = relationship("MakeupTimetable", back_populates="slots")
+    makeup_class = relationship("MakeupClass")
+    room = relationship("Room")

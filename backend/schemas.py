@@ -183,6 +183,7 @@ class AssignmentSessionOut(BaseModel):
     name: str
     # department_id removed - sessions are now university-wide
     is_archived: bool = False
+    session_type: str = "regular"  # "regular" or "makeup"
     department_code: Optional[str] = None  # Added for display purposes (e.g., "CE")
     class Config:
         from_attributes = True
