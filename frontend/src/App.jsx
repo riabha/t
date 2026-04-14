@@ -25,6 +25,8 @@ import SettingsPage from './pages/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import TestPage from './pages/TestPage';
 import DebugPage from './pages/DebugPage';
+import StudentsPage from './pages/StudentsPage';
+import MakeupPage from './pages/MakeupPage';
 
 function ProtectedRoute({ children }) {
     const { user } = useAuth();
@@ -65,6 +67,8 @@ function AppRoutes() {
                 <Route path="departments" element={<DepartmentsPage />} />
                 <Route path="timetable" element={<TimetablePage />} />
                 <Route path="manual-timetable" element={<ManualTimetablePage />} />
+                <Route path="students" element={<StudentsPage />} />
+                <Route path="makeup" element={<MakeupPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="restrictions" element={<RestrictionsPage />} />
                 <Route path="lab-settings" element={<LabSettingsPage />} />

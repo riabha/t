@@ -6,7 +6,7 @@ import {
     HiOutlineCalendar, HiOutlineLink, HiOutlineOfficeBuilding,
     HiOutlineClock, HiOutlineLogout, HiOutlineMenu, HiOutlineX,
     HiOutlineCollection, HiOutlineUserGroup, HiOutlineLibrary,
-    HiOutlineClipboardList, HiOutlineLockClosed, HiChevronDoubleLeft, HiChevronDoubleRight, HiOutlineAdjustments, HiOutlineBeaker, HiOutlineChartBar
+    HiOutlineClipboardList, HiOutlineLockClosed, HiChevronDoubleLeft, HiChevronDoubleRight, HiOutlineAdjustments, HiOutlineBeaker, HiOutlineChartBar, HiOutlineAcademicCap, HiOutlineUserCircle
 } from 'react-icons/hi';
 
 export default function DashboardLayout() {
@@ -27,6 +27,8 @@ export default function DashboardLayout() {
         { name: 'Rooms', path: '/dashboard/rooms', icon: <HiOutlineLibrary className="w-5 h-5" />, roles: ['super_admin', 'program_admin'] },
         { name: 'Departments', path: '/dashboard/departments', icon: <HiOutlineOfficeBuilding className="w-5 h-5" />, roles: ['super_admin'] },
         { name: 'Assignments', path: '/dashboard/assignments', icon: <HiOutlineClipboardList className="w-5 h-5" />, roles: ['super_admin', 'program_admin', 'clerk'] },
+        { name: 'Students', path: '/dashboard/students', icon: <HiOutlineUserCircle className="w-5 h-5" />, roles: ['super_admin', 'program_admin', 'clerk'] },
+        { name: 'Makeup Classes', path: '/dashboard/makeup', icon: <HiOutlineAcademicCap className="w-5 h-5" />, roles: ['super_admin', 'program_admin', 'clerk'] },
         { name: 'Restrictions', path: '/dashboard/restrictions', icon: <HiOutlineLockClosed className="w-5 h-5" />, roles: ['super_admin', 'program_admin'], requiresPermission: 'restrictions' },
         { name: 'Lab Settings', path: '/dashboard/lab-settings', icon: <HiOutlineBeaker className="w-5 h-5" />, roles: ['super_admin', 'program_admin'] },
         { name: 'User Management', path: '/dashboard/users', icon: <HiOutlineUserGroup className="w-5 h-5" />, roles: ['super_admin'] },
