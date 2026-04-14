@@ -1,0 +1,38 @@
+# Debug: Civil Admin No Data Issue
+
+## Step 1: Check if backend is running
+```bash
+docker-compose ps
+```
+
+## Step 2: Check backend logs for errors
+```bash
+docker-compose logs backend --tail=100
+```
+
+## Step 3: Check if database has data
+```bash
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "SELECT COUNT(*) FROM teachers;"
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "SELECT COUNT(*) FROM subjects;"
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "SELECT COUNT(*) FROM departments;"
+```
+
+## Step 4: Check if migration broke anything
+```bash
+docker exec tt-postgres psql -U timetable_user -d timetable_db -c "\dt"
+```
+
+## Step 5: Test API directly
+```bash
+curl http://localhost:8000/api/departments/
+curl http://localhost:8000/api/teachers/
+```
+
+## Step 6: Check browser console for errors
+Open browser DevTools (F12) and check Console tab for any errors
+
+## Possible Issues:
+1. Backend crashed due to model changes
+2. Migration failed and broke database
+3. API endpoints returning errors
+4. Frontend not loading data properly

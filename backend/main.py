@@ -10,7 +10,7 @@ from models import User
 from auth import verify_password, create_access_token
 
 # Import routers
-from routers import auth, teachers, subjects, assignments, rooms, timetable, departments, public, users, restrictions, dashboard, settings
+from routers import auth, teachers, subjects, assignments, rooms, timetable, departments, public, users, restrictions, dashboard, settings, students, makeup
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -45,6 +45,8 @@ app.include_router(users.router)
 app.include_router(restrictions.router)
 app.include_router(dashboard.router)
 app.include_router(settings.router)
+app.include_router(students.router)
+app.include_router(makeup.router)
 
 @app.get("/")
 def root():

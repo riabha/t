@@ -16,16 +16,20 @@ echo "Step 1: Pulling latest changes from Git..."
 git pull origin main
 
 echo ""
-echo "Step 2: Running database migration..."
-docker exec tt-backend python migrations/add_makeup_system.py
-
-echo ""
-echo "Step 3: Stopping containers..."
+echo "Step 2: Stopping containers..."
 docker-compose down
 
 echo ""
-echo "Step 4: Rebuilding and starting containers..."
+echo "Step 3: Rebuilding and starting containers..."
 docker-compose up -d --build
+
+echo ""
+echo "Step 4: Waiting for containers to be ready..."
+sleep 10
+
+echo ""
+echo "Step 5: Running database migration..."
+docker exec tt-backend python migrations/add_makeup_system.py
 
 echo ""
 echo "Step 5: Waiting for services to start..."
