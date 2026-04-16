@@ -265,6 +265,11 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     restricted_slots = defaultdict(set)
     for tr in teacher_restrictions:
         restricted_slots[tr.teacher_id].add((tr.day, tr.slot_index))
+    
+    # Load teacher restriction modes: teacher_id -> "strict" or "preferred"
+    teacher_restriction_modes = {}
+    for teacher in all_teachers:
+        teacher_restriction_modes[teacher.id] = teacher.restriction_mode or "preferred"
 
     # Cross-Dept Clashes: Load slots from other GENERATED or ACTIVE timetables
     # IMPORTANT: Ignore slots that belong to the SAME department we are currently generating
@@ -554,14 +559,19 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     if s < min_theory_slot:
                         continue
                     
-                    # Check if teacher is restricted (for penalty, not blocking)
+                    # Check if teacher is restricted and their restriction mode
                     teacher_restricted = False
+                    teacher_strict_mode = False
                     if comb_id:
                         if not comb_free_slots[comb_id, d, s]: continue
                     else:
                         teacher_restricted = (d, s) in restricted_slots[task["teacher_id"]]
-                        # CHANGED: Don't skip restricted slots, just mark for penalty
-                        # This allows solver to use restricted teachers as last resort
+                        teacher_strict_mode = teacher_restriction_modes.get(task["teacher_id"], "preferred") == "strict"
+                        
+                        # If teacher is in STRICT mode and slot is restricted, skip it completely
+                        if teacher_restricted and teacher_strict_mode:
+                            continue  # Absolute block - don't create variable
+                        # If teacher is in PREFERRED mode and slot is restricted, allow with penalty
                         
                     v = None
                     if comb_id:
@@ -575,9 +585,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                         v = model.NewBoolVar(f"th_{ti}_{d}_{s}")
                         penalties.append(v * (s * s * early_slot_penalty))
                         
-                        # Add heavy penalty if teacher is restricted at this slot
+                        # Add heavy penalty if teacher is restricted at this slot (PREFERRED mode only)
                         # Solver will avoid this but can use it if no alternative exists
-                        if teacher_restricted:
+                        if teacher_restricted:  # Already filtered strict mode above
                             penalties.append(v * 50000)  # Very high penalty for using restricted teacher
 
                     x_theory[ti, d, s] = v
@@ -650,21 +660,26 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     allowed_lab_starts = lab_starts[d]
                 
                 for ls in allowed_lab_starts:
-                    # Check for lab engineer restrictions (for penalty, not blocking)
+                    # Check for lab engineer restrictions and their mode
                     lab_engineer_restricted = False
+                    lab_engineer_strict_mode = False
                     
                     if comb_id:
                         if not comb_free_lab_starts[comb_id, d, ls]: continue
                     else:
                         # Check if lab engineer is restricted at any of the 3 lab slots
                         if task["lab_engineer_id"]:
+                            lab_engineer_strict_mode = teacher_restriction_modes.get(task["lab_engineer_id"], "preferred") == "strict"
                             for offset in range(3):
                                 slot = ls + offset
                                 if (d, slot) in restricted_slots[task["lab_engineer_id"]]:
                                     lab_engineer_restricted = True
                                     break
-                        # CHANGED: Don't skip restricted slots, just mark for penalty
-                        # This allows solver to use restricted lab engineers as last resort
+                            
+                            # If lab engineer is in STRICT mode and any lab slot is restricted, skip completely
+                            if lab_engineer_restricted and lab_engineer_strict_mode:
+                                continue  # Absolute block - don't create variable
+                        # If lab engineer is in PREFERRED mode and slot is restricted, allow with penalty
                         
                     v = None
                     if comb_id:
@@ -680,9 +695,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                         penalties.append(v * ((max_slots_per_day - ls) * lab_priority_multiplier))
                         if is_morning_day: penalties.append(v * (ls * 100))
                         
-                        # Add heavy penalty if lab engineer is restricted at this slot
+                        # Add heavy penalty if lab engineer is restricted at this slot (PREFERRED mode only)
                         # Solver will avoid this but can use it if no alternative exists
-                        if lab_engineer_restricted:
+                        if lab_engineer_restricted:  # Already filtered strict mode above
                             penalties.append(v * 50000)  # Very high penalty for using restricted lab engineer
 
                     x_lab[ti, d, ls] = v

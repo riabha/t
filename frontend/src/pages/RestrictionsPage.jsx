@@ -152,7 +152,7 @@ export default function RestrictionsPage() {
                 restrictions.map(r => ({ teacher_id: parseInt(selectedTeacher), day: r.day, slot_index: r.slot_index }))
             );
 
-            // Save consecutive settings
+            // Save consecutive settings and restriction mode
             const teacher = teachers.find(t => t.id === parseInt(selectedTeacher));
             if (teacher) {
                 await api.put(`/teachers/${selectedTeacher}`, {
@@ -162,7 +162,8 @@ export default function RestrictionsPage() {
                     department_id: teacher.department_id,
                     is_lab_engineer: teacher.is_lab_engineer,
                     allow_consecutive: teacher.allow_consecutive,
-                    max_consecutive_classes: teacher.max_consecutive_classes
+                    max_consecutive_classes: teacher.max_consecutive_classes,
+                    restriction_mode: teacher.restriction_mode || 'preferred'
                 });
             }
 
@@ -324,7 +325,11 @@ export default function RestrictionsPage() {
                                 className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-primary-400 min-w-[200px]"
                             >
                                 <option value="">Select a teacher...</option>
-                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                {teachers.map(t => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.name} {t.restriction_mode === 'strict' ? '🔒' : '💡'}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -333,30 +338,37 @@ export default function RestrictionsPage() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-slate-800">Restriction Enforcement Mode</span>
-                                            {globalConfig ? (
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${globalConfig.strict_teacher_restrictions ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                    {globalConfig.strict_teacher_restrictions ? 'Strict' : 'Preferred'}
+                                            <span className="text-sm font-bold text-slate-800">Restriction Mode for {teachers.find(t => t.id === parseInt(selectedTeacher))?.name}</span>
+                                            {teachers.find(t => t.id === parseInt(selectedTeacher)) && (
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${teachers.find(t => t.id === parseInt(selectedTeacher))?.restriction_mode === 'strict' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                    {teachers.find(t => t.id === parseInt(selectedTeacher))?.restriction_mode === 'strict' ? 'Strict' : 'Preferred'}
                                                 </span>
-                                            ) : (
-                                                <span className="text-[10px] text-slate-400 animate-pulse">Loading...</span>
                                             )}
                                         </div>
                                         <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
-                                            {globalConfig?.strict_teacher_restrictions
+                                            {teachers.find(t => t.id === parseInt(selectedTeacher))?.restriction_mode === 'strict'
                                                 ? "Blocks are ABSOLUTE. Solver will fail before scheduling here."
                                                 : "Blocks are PREFERRED. Solver skips if possible, but may use with penalty."}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={toggleStrictMode}
-                                        disabled={!globalConfig || !['super_admin', 'program_admin'].includes(user?.role)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${globalConfig?.strict_teacher_restrictions
+                                        onClick={() => {
+                                            const teacher = teachers.find(t => t.id === parseInt(selectedTeacher));
+                                            if (teacher) {
+                                                const newMode = teacher.restriction_mode === 'strict' ? 'preferred' : 'strict';
+                                                setTeachers(teachers.map(t =>
+                                                    t.id === parseInt(selectedTeacher)
+                                                        ? { ...t, restriction_mode: newMode }
+                                                        : t
+                                                ));
+                                            }
+                                        }}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${teachers.find(t => t.id === parseInt(selectedTeacher))?.restriction_mode === 'strict'
                                             ? 'bg-rose-600 text-white hover:bg-rose-700'
                                             : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-                                            } ${(!globalConfig || !['super_admin', 'program_admin'].includes(user?.role)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            }`}
                                     >
-                                        {!globalConfig ? 'Loading...' : `Switch to ${globalConfig.strict_teacher_restrictions ? 'Preferred' : 'Strict'}`}
+                                        {teachers.find(t => t.id === parseInt(selectedTeacher))?.restriction_mode === 'strict' ? '🔒 Switch to Preferred' : '💡 Switch to Strict'}
                                     </button>
                                 </div>
 

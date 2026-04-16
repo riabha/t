@@ -143,6 +143,7 @@ class Teacher(Base):
     is_lab_engineer = Column(Boolean, default=False)
     allow_consecutive = Column(Boolean, default=False)  # Allow consecutive classes
     max_consecutive_classes = Column(Integer, default=2)  # Max consecutive slots (2, 3, 4, etc.)
+    restriction_mode = Column(String(20), default="preferred")  # "strict" or "preferred" - per-teacher restriction enforcement
 
     department = relationship("Department", back_populates="teachers")
     engagements = relationship("TeacherDepartmentEngagement", back_populates="teacher", cascade="all, delete-orphan")
