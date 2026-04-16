@@ -1946,3 +1946,107 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         print(f"\n[SOLVER ERROR]\n{error_msg}")
         
         raise ValueError(error_msg)
+
+
+def generate_timetable_sequential(db: Session, name: str = "Sequential Generated",
+                                   semester_info: str = None, user_id: int = None,
+                                   target_dept_id: int = None,
+                                   batch_ids_ordered: List[int] = None,
+                                   **kwargs) -> Timetable:
+    """
+    Sequential batch-wise timetable generation.
+    
+    Processes batches one by one in the specified order:
+    1. Generate timetable for batch 1
+    2. Commit results to database
+    3. Generate timetable for batch 2 (respecting batch 1's slots as constraints)
+    4. Commit results
+    5. Continue for all batches
+    
+    This approach reduces solver complexity by breaking the problem into smaller chunks,
+    making it easier to find solutions when generating all batches together fails.
+    
+    Args:
+        db: Database session
+        name: Base name for the timetable (will be suffixed with batch info)
+        batch_ids_ordered: List of batch IDs in the order they should be processed
+        **kwargs: All other parameters passed to generate_timetable()
+    
+    Returns:
+        The final Timetable object containing all batches
+    """
+    if not batch_ids_ordered or len(batch_ids_ordered) == 0:
+        raise ValueError("Sequential mode requires at least one batch ID")
+    
+    print(f"\n[SEQUENTIAL GENERATION] Starting sequential generation for {len(batch_ids_ordered)} batches")
+    print(f"[SEQUENTIAL GENERATION] Order: {batch_ids_ordered}")
+    
+    # Create the main timetable object that will hold all batches
+    main_timetable = None
+    
+    # Process each batch sequentially
+    for idx, batch_id in enumerate(batch_ids_ordered, 1):
+        batch = db.query(Batch).filter(Batch.id == batch_id).first()
+        batch_name = batch.display_name if batch else f"Batch {batch_id}"
+        
+        print(f"\n[SEQUENTIAL GENERATION] Step {idx}/{len(batch_ids_ordered)}: Processing {batch_name}")
+        
+        try:
+            # Generate timetable for this single batch
+            # If this is the first batch, create a new timetable
+            # Otherwise, add to the existing timetable
+            if idx == 1:
+                # First batch: create new timetable
+                batch_tt = generate_timetable(
+                    db=db,
+                    name=f"{name} - {batch_name}",
+                    semester_info=semester_info,
+                    user_id=user_id,
+                    target_dept_id=target_dept_id,
+                    batch_ids=[batch_id],  # Only this batch
+                    **kwargs
+                )
+                main_timetable = batch_tt
+                print(f"[SEQUENTIAL GENERATION] ✓ Created timetable for {batch_name} (ID: {batch_tt.id})")
+            else:
+                # Subsequent batches: add to existing timetable
+                # The existing slots will automatically act as constraints via the
+                # existing_slots mechanism in generate_timetable
+                batch_tt = generate_timetable(
+                    db=db,
+                    name=f"{name} - {batch_name}",
+                    semester_info=semester_info,
+                    user_id=user_id,
+                    target_dept_id=target_dept_id,
+                    batch_ids=[batch_id],  # Only this batch
+                    timetable_id=main_timetable.id,  # Add to existing timetable
+                    **kwargs
+                )
+                print(f"[SEQUENTIAL GENERATION] ✓ Added {batch_name} to timetable (ID: {main_timetable.id})")
+            
+            # Commit after each batch to ensure slots are saved
+            db.commit()
+            
+        except ValueError as e:
+            error_msg = f"Sequential generation failed at batch {batch_name} (step {idx}/{len(batch_ids_ordered)})\n\n{str(e)}"
+            print(f"[SEQUENTIAL GENERATION] ✗ Failed at {batch_name}: {str(e)}")
+            
+            # If we have a partial timetable, mark it as failed
+            if main_timetable:
+                main_timetable.status = "failed"
+                main_timetable.name = f"{name} - FAILED at {batch_name}"
+                db.commit()
+            
+            raise ValueError(error_msg)
+    
+    # Update the final timetable name to reflect all batches
+    if main_timetable:
+        main_timetable.name = name
+        db.commit()
+        db.refresh(main_timetable)
+        
+        slot_count = db.query(TimetableSlot).filter(TimetableSlot.timetable_id == main_timetable.id).count()
+        print(f"\n[SEQUENTIAL GENERATION] ✓ Successfully completed all {len(batch_ids_ordered)} batches")
+        print(f"[SEQUENTIAL GENERATION] Total slots generated: {slot_count}")
+    
+    return main_timetable

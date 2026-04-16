@@ -77,6 +77,7 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db),
              user=Depends(require_role("super_admin", "program_admin"))):
     """Run the OR-Tools solver and store the result. Clerk cannot generate."""
     print(f"\n[GENERATE REQUEST] User: {user.username}, Session: {req.session_id}, Batches: {req.batch_ids}")
+    print(f"[GENERATE REQUEST] Sequential Mode: {req.sequential_mode}")
     print(f"[GENERATE REQUEST] max_slots_per_day: {req.max_slots_per_day}")
     print(f"[GENERATE REQUEST] max_slots_friday: {req.max_slots_friday}")
     print(f"[GENERATE REQUEST] break_slot: {req.break_slot}")
@@ -109,27 +110,57 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db),
                  req.max_slots_per_day = tt_existing.max_slots_per_day
                  req.friday_has_break = tt_existing.friday_has_break
 
-        tt = generate_timetable(
-            db, req.name, req.semester_info, user_id=user.id, 
-            target_dept_id=dept_id,
-            session_id=req.session_id,
-            batch_ids=req.batch_ids,
-            extra_classes_per_subject=req.extra_classes_per_subject,
-            class_duration=req.class_duration,
-            start_time=req.start_time,
-            break_slot=req.break_slot,
-            break_start_time=req.break_start_time,
-            break_end_time=req.break_end_time,
-            max_slots_per_day=req.max_slots_per_day,
-            max_slots_friday=req.max_slots_friday,
-            morning_lab_section_ids=req.morning_lab_section_ids,
-            friday_has_break=req.friday_has_break,
-            allow_friday_labs=req.allow_friday_labs,
-            prefer_early_dismissal=req.prefer_early_dismissal,
-            lab_is_last=req.lab_is_last,
-            uniform_lab_start_batch_ids=req.uniform_lab_start_batch_ids,
-            timetable_id=target_timetable_id
-        )
+        # Check if sequential mode is requested
+        if req.sequential_mode and req.batch_ids and len(req.batch_ids) > 1:
+            # Use sequential batch-wise generation
+            from solver import generate_timetable_sequential
+            
+            tt = generate_timetable_sequential(
+                db=db,
+                name=req.name,
+                semester_info=req.semester_info,
+                user_id=user.id,
+                target_dept_id=dept_id,
+                batch_ids_ordered=req.batch_ids,
+                session_id=req.session_id,
+                extra_classes_per_subject=req.extra_classes_per_subject,
+                class_duration=req.class_duration,
+                start_time=req.start_time,
+                break_slot=req.break_slot,
+                break_start_time=req.break_start_time,
+                break_end_time=req.break_end_time,
+                max_slots_per_day=req.max_slots_per_day,
+                max_slots_friday=req.max_slots_friday,
+                morning_lab_section_ids=req.morning_lab_section_ids,
+                friday_has_break=req.friday_has_break,
+                allow_friday_labs=req.allow_friday_labs,
+                prefer_early_dismissal=req.prefer_early_dismissal,
+                lab_is_last=req.lab_is_last,
+                uniform_lab_start_batch_ids=req.uniform_lab_start_batch_ids
+            )
+        else:
+            # Use regular generation (all batches at once)
+            tt = generate_timetable(
+                db, req.name, req.semester_info, user_id=user.id, 
+                target_dept_id=dept_id,
+                session_id=req.session_id,
+                batch_ids=req.batch_ids,
+                extra_classes_per_subject=req.extra_classes_per_subject,
+                class_duration=req.class_duration,
+                start_time=req.start_time,
+                break_slot=req.break_slot,
+                break_start_time=req.break_start_time,
+                break_end_time=req.break_end_time,
+                max_slots_per_day=req.max_slots_per_day,
+                max_slots_friday=req.max_slots_friday,
+                morning_lab_section_ids=req.morning_lab_section_ids,
+                friday_has_break=req.friday_has_break,
+                allow_friday_labs=req.allow_friday_labs,
+                prefer_early_dismissal=req.prefer_early_dismissal,
+                lab_is_last=req.lab_is_last,
+                uniform_lab_start_batch_ids=req.uniform_lab_start_batch_ids,
+                timetable_id=target_timetable_id
+            )
 
     except ValueError as first_error:
         # ── Fallback: retry with morning labs for all sections ─────────

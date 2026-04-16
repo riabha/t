@@ -49,6 +49,7 @@ export default function TimetablePage() {
     const [departments, setDepartments] = useState([]);
     const [showProgressModal, setShowProgressModal] = useState(false);
     const [progressStep, setProgressStep] = useState(0);
+    const [sequentialMode, setSequentialMode] = useState(false); // Sequential batch-wise generation
 
     // Calculate break start and end times automatically based on slot position
     const calculateBreakTimes = () => {
@@ -194,6 +195,7 @@ export default function TimetablePage() {
                 semester_info: `${semesterType} ${new Date().getFullYear()}`,
                 session_id: parseInt(genSessionId),
                 batch_ids: genBatchIds.length > 0 ? genBatchIds.map(id => parseInt(id)) : null,
+                sequential_mode: sequentialMode, // Enable sequential batch-wise generation
                 extra_classes_per_subject: parseInt(extraClasses),
                 class_duration: parseInt(classDuration),
                 start_time: startTime,
@@ -899,6 +901,29 @@ export default function TimetablePage() {
                                                 ))
                                         )}
                                     </div>
+                                    
+                                    {/* Sequential Mode Toggle */}
+                                    {genBatchIds.length > 1 && (
+                                        <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="sequentialMode"
+                                                    checked={sequentialMode}
+                                                    onChange={(e) => setSequentialMode(e.target.checked)}
+                                                    className="mt-0.5 w-4 h-4 text-amber-600 bg-white border-amber-300 rounded focus:ring-amber-500 focus:ring-2 cursor-pointer"
+                                                />
+                                                <div className="flex-1">
+                                                    <label htmlFor="sequentialMode" className="text-xs font-bold text-amber-800 uppercase cursor-pointer block mb-1">
+                                                        🔄 Sequential Batch-wise Generation
+                                                    </label>
+                                                    <p className="text-[10px] text-amber-700 leading-relaxed">
+                                                        Process batches one by one in the selected order. This reduces solver complexity and makes it easier to find solutions when generating all batches together fails. Each batch is solved independently, then committed before moving to the next.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

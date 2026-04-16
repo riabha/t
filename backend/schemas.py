@@ -336,6 +336,7 @@ class GenerateRequest(BaseModel):
     semester_info: Optional[str] = None
     session_id: Optional[int] = None
     batch_ids: Optional[List[int]] = None # Bulk if None/Empty
+    sequential_mode: bool = False  # If True, process batches sequentially (one by one)
     extra_classes_per_subject: int = 0
     class_duration: int = 60
     start_time: Optional[str] = "08:30"  # Start time for first lecture
