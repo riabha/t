@@ -78,21 +78,19 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
     const breakStart = timetable?.break_start_time || "10:30";
     const breakEnd = timetable?.break_end_time || "11:00";
     const maxSlotsFriday = timetable?.max_slots_friday || 5;
+    const maxSlotsPerDay = timetable?.max_slots_per_day || 8; // Get max slots from timetable
     const startTime = timetable?.start_time || "08:30"; // Configurable start time
 
     const generateSlotTimes = () => {
         // Parse start time
         const [startH, startM] = startTime.split(':').map(Number);
         
-        // All 8 columns get real clock times.
-        // Breaks can be at slot 2 OR slot 3 depending on morning-lab scheduling.
-        // The break LABEL appears inside the cell (from is_break flag in data).
-        // The column header always shows the real clock time for that slot index.
+        // Generate times for all slots based on maxSlotsPerDay
         const times = [];
         let h = startH, m = startM;
         const fmt = (hh, mm) => `${hh}:${String(mm).padStart(2, '0')}`;
 
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < maxSlotsPerDay; i++) {
             if (i === breakSlot) {
                 // Default break column — show the break window time
                 const endH = parseInt(breakEnd.split(':')[0]);
@@ -139,7 +137,7 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
         const times = [];
         const fmt = (hh, mm) => `${hh}:${String(mm).padStart(2, '0')}`;
         let h = startH, m = startM;
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < maxSlotsPerDay; i++) {
             if (i === actualBreakSlot) {
                 const startStr = fmt(h, m);
                 const [bEndH, bEndM] = breakEnd.split(':').map(Number);
@@ -246,7 +244,7 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                                     {dayName}
                                     {d === 4 && <span className="block text-[9px] text-slate-400 font-normal mt-0.5">Short Day</span>}
                                 </td>
-                                {Array.from({ length: 8 }, (_, s) => {
+                                {Array.from({ length: maxSlotsPerDay }, (_, s) => {
                                     if (d === 4 && s >= maxSlotsFriday) {
                                         return <td key={s} className="bg-slate-50/20 border-b border-slate-50" />;
                                     }
