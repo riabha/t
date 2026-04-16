@@ -226,12 +226,12 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                 <table className="w-full border-collapse">
                     <thead>
                         <tr>
-                            <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50/80 border-b border-slate-100 sticky left-0 z-10 min-w-[100px] text-left">
+                            <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50/80 border-b border-slate-100 sticky left-0 z-10 min-w-[80px] text-left">
                                 Day / Time
                             </th>
                             {slotTimes.map((t, i) => (
-                                <th key={i} className={`px-2 py-3 text-[10px] border-b border-slate-100 whitespace-pre-line text-center min-w-[100px] ${i === breakSlot ? 'bg-amber-50/30' : 'bg-slate-50/50'}`}>
-                                    <div className="text-slate-400 font-bold mb-1">SLOT {i + 1}</div>
+                                <th key={i} className={`px-1 py-2 text-[9px] border-b border-slate-100 whitespace-pre-line text-center min-w-[90px] ${i === breakSlot ? 'bg-amber-50/30' : 'bg-slate-50/50'}`}>
+                                    <div className="text-slate-400 font-bold mb-0.5">SLOT {i + 1}</div>
                                     <div className="text-slate-600 font-medium leading-tight">{t}</div>
                                 </th>
                             ))}
@@ -254,9 +254,9 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                                     const isEmptySlot = !slot;
                                     
                                     return (
-                                        <td key={s} className={`border-b border-slate-100 p-1 h-16 min-w-[120px] transition-all duration-200 ${isEmptySlot ? 'bg-white' : ''}`}
+                                        <td key={s} className={`border-b border-slate-100 p-1 h-16 min-w-[90px] transition-all duration-200 ${isEmptySlot ? 'bg-white' : ''}`}
                                             title={cellTooltip(slot)}>
-                                            <div className={`h-full w-full rounded-lg flex flex-col justify-center items-center text-center p-1.5 relative overflow-hidden group/slot ${
+                                            <div className={`h-full w-full rounded-lg flex flex-col justify-center items-center text-center p-1 relative overflow-hidden group/slot ${
                                                 isEmptySlot && isTeacherView 
                                                     ? 'border-2 border-slate-200 bg-slate-50/20' 
                                                     : isEmptySlot 
@@ -277,17 +277,17 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                                                             <>
                                                                 {/* Batch/Section at top */}
                                                                 {slot.section_name && (
-                                                                    <div className="text-[10px] font-black opacity-90 leading-tight mb-1">
+                                                                    <div className="text-[9px] font-black opacity-90 leading-tight mb-0.5">
                                                                         {slot.section_name}
                                                                     </div>
                                                                 )}
                                                                 {/* Subject code */}
-                                                                <div className="font-bold text-[13px] leading-tight mb-0.5">
+                                                                <div className="font-bold text-[11px] leading-tight mb-0.5">
                                                                     {slot.subject_code}{slot.is_lab ? ' (Pr)' : ''}
                                                                 </div>
                                                                 {/* Room at bottom */}
                                                                 {slot.room_name && (
-                                                                    <div className="text-[9px] opacity-70 leading-tight font-medium">
+                                                                    <div className="text-[8px] opacity-70 leading-tight font-medium">
                                                                         📍 {slot.room_name}
                                                                     </div>
                                                                 )}
@@ -299,15 +299,15 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                                                                 {slot.is_lab ? (
                                                                     <>
                                                                         {slot.room_name && (
-                                                                            <div className="text-[8px] font-semibold opacity-80 leading-tight mb-0.5">
+                                                                            <div className="text-[7px] font-semibold opacity-80 leading-tight mb-0.5">
                                                                                 {slot.room_name}
                                                                             </div>
                                                                         )}
-                                                                        <div className="font-bold text-[12px] leading-tight mb-0.5">
+                                                                        <div className="font-bold text-[10px] leading-tight mb-0.5">
                                                                             {slot.subject_code} (Pr)
                                                                         </div>
                                                                         {slot.lab_engineer_name && (
-                                                                            <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                            <div className="text-[8px] opacity-80 leading-tight font-medium">
                                                                                 {slot.lab_engineer_name}
                                                                             </div>
                                                                         )}
@@ -315,24 +315,24 @@ export default function TimetableGrid({ sectionName, slots, timetable, isTeacher
                                                                 ) : (
                                                                     /* Theory: 2 rows - Subject, Teacher name */
                                                                     <>
-                                                                        <div className="font-bold text-[12px] leading-tight mb-1">
+                                                                        <div className="font-bold text-[10px] leading-tight mb-0.5">
                                                                             {slot.subject_code}
                                                                         </div>
                                                                         {slot.is_lab ? (
                                                                             slot.lab_engineer_name && (
-                                                                                <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                                <div className="text-[8px] opacity-80 leading-tight font-medium">
                                                                                     {slot.lab_engineer_name}
                                                                                 </div>
                                                                             )
                                                                         ) : (
                                                                             slot.teacher_name && (
-                                                                                <div className="text-[9px] opacity-80 leading-tight font-medium">
+                                                                                <div className="text-[8px] opacity-80 leading-tight font-medium">
                                                                                     {slot.teacher_name}
                                                                                 </div>
                                                                             )
                                                                         )}
                                                                         {slot.room_name && (
-                                                                            <div className="absolute top-1 right-1 text-[7px] font-bold opacity-30 group-hover/slot:opacity-60">
+                                                                            <div className="absolute top-0.5 right-0.5 text-[6px] font-bold opacity-30 group-hover/slot:opacity-60">
                                                                                 {slot.room_name}
                                                                             </div>
                                                                         )}
