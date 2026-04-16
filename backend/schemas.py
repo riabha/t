@@ -142,6 +142,7 @@ class TeacherCreate(BaseModel):
     is_lab_engineer: bool = False
     allow_consecutive: bool = False
     max_consecutive_classes: int = 2
+    restriction_mode: str = "preferred"  # "strict" or "preferred"
     # Account fields
     assign_account: bool = False
     username: Optional[str] = None
@@ -166,6 +167,7 @@ class TeacherOut(BaseModel):
     is_lab_engineer: bool
     allow_consecutive: bool = False
     max_consecutive_classes: int = 2
+    restriction_mode: str = "preferred"  # "strict" or "preferred"
     username: Optional[str] = None
     user_id: Optional[int] = None
     engaged_department_ids: List[int] = []
