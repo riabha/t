@@ -1764,17 +1764,34 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     
 
     # Pre-calculate lab room conflicts for error reporting
+    # IMPORTANT: Check ALL batches in session, not just current batch_ids
+    # This is critical for sequential generation where earlier batches are already scheduled
     lab_room_conflicts = []
     lab_room_usage = defaultdict(lambda: defaultdict(int))
-    for ti, task in enumerate(tasks):
-        if task['lab_credits'] > 0 and task.get('lab_room_id'):
-            lab_room_id = task['lab_room_id']
-            for d in range(5):
-                lab_room_usage[lab_room_id][d] += 1
+    
+    # Get ALL assignments in this session (not just target batches)
+    if session_id:
+        all_session_assignments = db.query(Assignment).filter(Assignment.session_id == session_id).all()
+        for asgn in all_session_assignments:
+            subj = subject_map.get(asgn.subject_id)
+            if subj and subj.lab_credits > 0 and asgn.lab_room_id:
+                lab_room_usage[asgn.lab_room_id]["all"] += 1
+                # Count per day (each lab needs to fit in one day)
+                for d in range(5):
+                    lab_room_usage[asgn.lab_room_id][d] += 1
+    else:
+        # Fallback: only check current tasks
+        for ti, task in enumerate(tasks):
+            if task['lab_credits'] > 0 and task.get('lab_room_id'):
+                lab_room_id = task['lab_room_id']
+                for d in range(5):
+                    lab_room_usage[lab_room_id][d] += 1
     
     for room_id, day_usage in lab_room_usage.items():
         room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
         for day, count in day_usage.items():
+            if day == "all":
+                continue
             max_labs_per_day = len(lab_starts.get(day, []))
             if count > max_labs_per_day:
                 lab_room_conflicts.append({
