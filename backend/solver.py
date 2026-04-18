@@ -2220,7 +2220,8 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 if len(lab_room_conflicts) > 3:
                     issues.append(f"  ... and {len(lab_room_conflicts) - 3} more")
                 
-                issues.append("\n✅ FIX: Reassign labs to Lab-01, Lab-02, etc. in Assignments page")
+                issues.append("\n✅ AUTO-FIX AVAILABLE")
+                issues.append(f"  Click 'Fix Automatically' button to reassign labs to available rooms")
             else:
                 issues.append("  No lab room conflicts. Try generating batches individually to isolate the issue.")
         
