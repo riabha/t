@@ -1939,9 +1939,11 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 batch_key = f"{batch_year}{dept_code}"
                 total_slots_needed_by_batch[batch_key] += needed
             
+        # Calculate total available slots INCLUDING break slots (breaks are scheduled, not missing)
         total_slots_available = 0
-        for d in DAYS:
-            total_slots_available += len(schedulable_slots[d])
+        for d in range(4):  # Mon-Thu
+            total_slots_available += (max_slots_per_day or 8)
+        total_slots_available += max_slots_friday  # Friday
             
         for batch_key, needed in sorted(total_slots_needed_by_batch.items()):
             issues.append(f"  • Batch {batch_key} requires {needed} total slots. Capacity is {total_slots_available} slots/week.")
