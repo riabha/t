@@ -170,6 +170,10 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db),
         error_message = str(first_error)
         print(f"[GENERATION ERROR] {error_message}")
         
+        # Don't retry fallback for sequential mode - just fail with detailed error
+        if req.sequential_mode:
+            raise HTTPException(status_code=400, detail=error_message)
+        
         if not req.morning_lab_section_ids:
             print("[FALLBACK] First solve infeasible with no morning labs — retrying with morning labs as fallback")
             try:
@@ -195,9 +199,10 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db),
                 )
                 print("[FALLBACK] Succeeded with morning labs fallback")
             except ValueError as fallback_error:
-                # Both attempts failed — surface the original error
-                print(f"[FALLBACK ERROR] {str(fallback_error)}")
-                raise HTTPException(status_code=400, detail=error_message)
+                # Both attempts failed — surface the FALLBACK error (more detailed)
+                fallback_message = str(fallback_error)
+                print(f"[FALLBACK ERROR] {fallback_message}")
+                raise HTTPException(status_code=400, detail=fallback_message)
         else:
             # Sections were manually configured — don't fallback, show the error
             raise HTTPException(status_code=400, detail=error_message)
