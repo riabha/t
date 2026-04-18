@@ -1853,6 +1853,64 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     print(f"     Needs {issue['needed']} total slots but only {issue['available']} available")
                     print(f"     Has {issue['restrictions']} restricted slots")
                     print(f"     → Remove {issue['needed'] - issue['available']} restrictions or reassign subjects")
+        else:
+            # No obvious per-task issues, check for global conflicts
+            print("\n🔍 GLOBAL CONSTRAINT ANALYSIS:")
+            print("No per-task slot deficits detected. Checking for global conflicts...")
+            
+            # Check for lab room over-booking
+            lab_room_usage = defaultdict(lambda: defaultdict(int))  # room_id -> day -> count
+            for ti, task in enumerate(tasks):
+                if task['lab_credits'] > 0 and task.get('lab_room_id'):
+                    lab_room_id = task['lab_room_id']
+                    # Each lab needs 3 consecutive slots
+                    for d in range(5):
+                        lab_room_usage[lab_room_id][d] += 1
+            
+            for room_id, day_usage in lab_room_usage.items():
+                room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
+                for day, count in day_usage.items():
+                    max_labs_per_day = len(lab_starts.get(day, []))
+                    if count > max_labs_per_day:
+                        print(f"\n  ⚠️  Lab Room Conflict: {room_name}")
+                        print(f"     Day {day}: {count} labs need this room but only {max_labs_per_day} lab slots available")
+                        print(f"     → Assign some labs to different rooms or days")
+            
+            # Check for teacher conflicts across batches
+            teacher_batch_conflicts = defaultdict(list)
+            for ti, task in enumerate(tasks):
+                teacher_id = task.get('teacher_id')
+                if teacher_id:
+                    batch_name = f"{task['batch_year']}{task['dept_code']}"
+                    teacher_batch_conflicts[teacher_id].append({
+                        "batch": batch_name,
+                        "subject": task['subject'].code,
+                        "hours": task['theory_credits']
+                    })
+            
+            for teacher_id, assignments in teacher_batch_conflicts.items():
+                if len(assignments) > 3:  # Teacher teaching many subjects
+                    teacher_name = teacher_map.get(teacher_id).name if teacher_id in teacher_map else f"ID {teacher_id}"
+                    total_hours = sum(a['hours'] for a in assignments)
+                    print(f"\n  ⚠️  Teacher Overload: {teacher_name}")
+                    print(f"     Teaching {len(assignments)} subjects across multiple batches ({total_hours} total hours)")
+                    for asg in assignments[:5]:  # Show first 5
+                        print(f"       - {asg['batch']}: {asg['subject']} ({asg['hours']}h)")
+                    if len(assignments) > 5:
+                        print(f"       ... and {len(assignments) - 5} more")
+                    print(f"     → May have scheduling conflicts between batches")
+            
+            print("\n  💡 LIKELY CAUSE:")
+            print("     The solver detected a conflict during presolve (before trying to schedule).")
+            print("     This usually means:")
+            print("       1. A teacher is assigned to too many subjects across multiple batches")
+            print("       2. Lab rooms are over-booked (same room needed by multiple labs at same time)")
+            print("       3. Combination constraints make it impossible to find non-conflicting slots")
+            print("\n  🔧 SUGGESTED FIX:")
+            print("     Try generating batches ONE AT A TIME (not sequential) to isolate the problem:")
+            print("       - Uncheck all batches except one")
+            print("       - Generate that batch alone")
+            print("       - Repeat for each batch to find which one fails")
         
         print("\n" + "="*70)
         print("Most common causes:")
