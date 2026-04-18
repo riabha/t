@@ -1763,6 +1763,29 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         raise ValueError(full_error)
     
 
+    # Pre-calculate lab room conflicts for error reporting
+    lab_room_conflicts = []
+    lab_room_usage = defaultdict(lambda: defaultdict(int))
+    for ti, task in enumerate(tasks):
+        if task['lab_credits'] > 0 and task.get('lab_room_id'):
+            lab_room_id = task['lab_room_id']
+            for d in range(5):
+                lab_room_usage[lab_room_id][d] += 1
+    
+    for room_id, day_usage in lab_room_usage.items():
+        room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
+        for day, count in day_usage.items():
+            max_labs_per_day = len(lab_starts.get(day, []))
+            if count > max_labs_per_day:
+                lab_room_conflicts.append({
+                    "room": room_name,
+                    "room_id": room_id,
+                    "day": day,
+                    "assigned": count,
+                    "available": max_labs_per_day,
+                    "overflow": count - max_labs_per_day
+                })
+
     status = solver.Solve(model)
     print(f"[SOLVER] Status: {solver.StatusName(status)}, Time: {solver.WallTime():.2f}s")
     
@@ -2183,48 +2206,23 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     issues.append(f"     Has {issue['restrictions']} restricted slots")
                     issues.append(f"     → Remove {issue['needed'] - issue['available']} restrictions or reassign subjects")
         else:
-            # Add global constraint analysis to error message (CONCISE VERSION)
+            # Add global constraint analysis using pre-calculated conflicts
             issues.append("\n🔍 ROOT CAUSE IDENTIFIED:")
             
-            # Check for lab room over-booking
-            lab_room_usage = defaultdict(lambda: defaultdict(int))
-            for ti, task in enumerate(tasks):
-                if task['lab_credits'] > 0 and task.get('lab_room_id'):
-                    lab_room_id = task['lab_room_id']
-                    for d in range(5):
-                        lab_room_usage[lab_room_id][d] += 1
-            
-            # Find the worst conflicts
-            worst_conflicts = []
-            for room_id, day_usage in lab_room_usage.items():
-                room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
-                for day, count in day_usage.items():
-                    max_labs_per_day = len(lab_starts.get(day, []))
-                    if count > max_labs_per_day:
-                        worst_conflicts.append({
-                            "room": room_name,
-                            "room_id": room_id,
-                            "day": day,
-                            "assigned": count,
-                            "available": max_labs_per_day,
-                            "overflow": count - max_labs_per_day
-                        })
-            
-            if worst_conflicts:
+            if lab_room_conflicts:
                 # Sort by overflow (worst first) and show top 3
-                worst_conflicts.sort(key=lambda x: x["overflow"], reverse=True)
-                issues.append("\n❌ LAB ROOM OVER-BOOKING DETECTED:")
-                for conflict in worst_conflicts[:3]:
+                lab_room_conflicts.sort(key=lambda x: x["overflow"], reverse=True)
+                issues.append("\n❌ LAB ROOM OVER-BOOKING:")
+                for conflict in lab_room_conflicts[:3]:
                     day_name = ["Mon", "Tue", "Wed", "Thu", "Fri"][conflict["day"]]
-                    issues.append(f"  • {conflict['room']} ({day_name}): {conflict['assigned']} labs need it, only {conflict['available']} slots available")
+                    issues.append(f"  • {conflict['room']} ({day_name}): {conflict['assigned']} labs assigned, only {conflict['available']} slots")
                 
-                if len(worst_conflicts) > 3:
-                    issues.append(f"  ... and {len(worst_conflicts) - 3} more conflicts")
+                if len(lab_room_conflicts) > 3:
+                    issues.append(f"  ... and {len(lab_room_conflicts) - 3} more")
                 
-                issues.append("\n✅ QUICK FIX:")
-                issues.append("  Go to Assignments → Find labs using these rooms → Reassign to Lab-01, Lab-02, etc.")
+                issues.append("\n✅ FIX: Reassign labs to Lab-01, Lab-02, etc. in Assignments page")
             else:
-                issues.append("  No obvious lab room conflicts. Check teacher restrictions or try generating batches individually.")
+                issues.append("  No lab room conflicts. Try generating batches individually to isolate the issue.")
         
         error_msg = f"Timetable generation failed (Status: {solver.StatusName(status)})\n\n" + "\n".join(issues)
         print(f"\n[SOLVER ERROR]\n{error_msg}")
