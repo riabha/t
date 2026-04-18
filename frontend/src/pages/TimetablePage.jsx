@@ -246,12 +246,20 @@ export default function TimetablePage() {
                 // Other structured error
                 setGenerationError(JSON.stringify(errorDetail, null, 2));
             } else {
-                // Simple string error
-                setGenerationError(errorDetail);
+                // Simple string error - show only first occurrence (remove duplicate from sequential generation)
+                const errorLines = errorDetail.split('\n');
+                const uniqueLines = [];
+                const seen = new Set();
+                
+                for (const line of errorLines) {
+                    if (!seen.has(line) || line.trim() === '') {
+                        uniqueLines.push(line);
+                        seen.add(line);
+                    }
+                }
+                
+                setGenerationError(uniqueLines.join('\n'));
             }
-
-            // Also show alert for immediate feedback
-            alert(`Generation Failed:\n\n${typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail, null, 2)}`);
         }
         setGenerating(false);
     };
@@ -1122,10 +1130,34 @@ export default function TimetablePage() {
                                         {generationError}
                                     </div>
                                 </div>
-                                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between gap-3">
+                                    {/* Show Fix button if error mentions lab room conflicts */}
+                                    {generationError && generationError.includes('LAB ROOM OVER-BOOKING') && (
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const response = await api.post(`/autofix/lab-room-conflicts?session_id=${genSessionId}`);
+                                                    if (response.data.success) {
+                                                        alert(`✅ Fixed! ${response.data.message}\n\nReassigned ${response.data.changes.length} labs. Try generating again.`);
+                                                        setGenerationError(null);
+                                                    } else {
+                                                        alert(`❌ ${response.data.message}`);
+                                                    }
+                                                } catch (err) {
+                                                    alert(`Error: ${err.response?.data?.detail || err.message}`);
+                                                }
+                                            }}
+                                            className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Fix Automatically
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setGenerationError(null)}
-                                        className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium transition-colors"
+                                        className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium transition-colors ml-auto"
                                     >
                                         Close
                                     </button>

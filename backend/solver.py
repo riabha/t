@@ -2122,88 +2122,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         issues = []
         issues.append("The constraints provided to the solver are conflicting and cannot be met.\n")
         
-        # ── TEACHER CONFLICT REPORTING ──────────────────────────────
-        # Show detected teacher conflicts first (most actionable)
-        if teacher_conflicts:
-            issues.append("⚠️  TEACHER CONFLICTS DETECTED:")
-            issues.append("The following teachers have conflicting assignments that cannot be scheduled:\n")
-            
-            for conflict in teacher_conflicts:
-                teacher_name = conflict["teacher"]
-                total_hours = conflict["total_hours"]
-                available = conflict["available_slots"]
-                conflict_type = conflict.get("conflict_type", "")
-                
-                if conflict_type:
-                    issues.append(f"  • {teacher_name} - {conflict_type}")
-                else:
-                    issues.append(f"  • {teacher_name} - Requires {total_hours} hours but only {available} slots available")
-                
-                for asg in conflict["assignments"]:
-                    sections_str = ", ".join(asg["sections"])
-                    issues.append(f"    - {asg['subject']} ({asg['role']}, {asg['hours']}h) for {sections_str}")
-                
-                issues.append("")  # Blank line between teachers
-            
-            issues.append("ACTION REQUIRED:")
-            issues.append("  1. Go to Assignments page")
-            issues.append("  2. Find the conflicting assignments listed above")
-            issues.append("  3. Change the teacher or lab engineer to someone else")
-            issues.append("  4. Or remove one of the conflicting assignments")
-            issues.append("")
-        
-        problem_tasks = [t for t in diagnostics["tasks_detail"] if "issue" in t]
-        
-        if problem_tasks:
-            issues.append("INSUFFICIENT SLOTS FOR:")
-            for t in problem_tasks:
-                issues.append(f"  • {t['subject_code']} ({t['subject_name']}) - {t['issue']}")
-                issues.append(f"    Teacher: {t['teacher']}, Sections: {', '.join(t['sections'])}")
-        
-        # Re-check workload vs capacity mathematically to provide deeper insights
-        issues.append("\nADDITIONAL DIAGNOSTICS:")
-        
-        # Group tasks by (batch_year, dept_code, subject) to avoid counting sections multiple times
-        # Sections of the same subject are scheduled at the SAME TIME
-        total_slots_needed_by_batch = defaultdict(int)
-        seen_batch_subjects = set()
-        
-        for t in tasks:
-            batch_year = t["batch_year"]
-            dept_code = t["dept_code"]
-            subject_id = t["subject"].id
-            key = (batch_year, dept_code, subject_id)
-            
-            # Only count each subject once per batch-department combination (not per section)
-            if key not in seen_batch_subjects:
-                seen_batch_subjects.add(key)
-                needed = t["theory_credits"] + (t["lab_credits"] * 3)
-                batch_key = f"{batch_year}{dept_code}"
-                total_slots_needed_by_batch[batch_key] += needed
-            
-        # Calculate total available slots INCLUDING break slots (breaks are scheduled, not missing)
-        total_slots_available = 0
-        for d in range(4):  # Mon-Thu
-            total_slots_available += (max_slots_per_day or 8)
-        total_slots_available += max_slots_friday  # Friday
-            
-        for batch_key, needed in sorted(total_slots_needed_by_batch.items()):
-            issues.append(f"  • Batch {batch_key} requires {needed} total slots. Capacity is {total_slots_available} slots/week.")
-            if needed > total_slots_available:
-                issues.append(f"    *** ERROR: Batch requires more slots than physically available! ***")
-        
-        # General suggestions (only if no teacher conflicts detected)
-        if not teacher_conflicts:
-            issues.append("\nSUGGESTIONS:")
-            issues.append("  1. Check teacher restrictions (teachers may end up with 0 available slots)")
-            issues.append("  2. Verify room availability and capacity limitations")
-            issues.append("  3. Review lab timing requirements (morning vs afternoon blocks)")
-            issues.append("  4. Check for conflicting assignments across other active/generated timetables")
-            issues.append("  5. Try generation on individual batches to isolate the problematic batch")
-        
-        # Add detailed constraint violations from earlier analysis
+        # Show ROOT CAUSE first (most important)
         if constraint_issues:
-            issues.append("\n🔍 DETAILED CONSTRAINT VIOLATIONS:")
+            issues.append("🔍 ROOT CAUSE:")
             for issue in constraint_issues:
                 if issue["type"] == "INSUFFICIENT_THEORY_SLOTS":
                     issues.append(f"\n  ❌ {issue['batch']} - {issue['subject']} ({issue['teacher']})")
@@ -2223,12 +2144,10 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     issues.append(f"     Has {issue['restrictions']} restricted slots")
                     issues.append(f"     → Remove {issue['needed'] - issue['available']} restrictions or reassign subjects")
         else:
-            # Add global constraint analysis using pre-calculated conflicts
-            issues.append("\n🔍 ROOT CAUSE IDENTIFIED:")
-            
+            # Show lab room conflicts
             if lab_room_conflicts:
-                # Sort by overflow (worst first) and show top 3
                 lab_room_conflicts.sort(key=lambda x: x["overflow"], reverse=True)
+                issues.append("🔍 ROOT CAUSE:")
                 issues.append("\n❌ LAB ROOM OVER-BOOKING:")
                 for conflict in lab_room_conflicts[:3]:
                     day_name = ["Mon", "Tue", "Wed", "Thu", "Fri"][conflict["day"]]
@@ -2238,9 +2157,51 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     issues.append(f"  ... and {len(lab_room_conflicts) - 3} more")
                 
                 issues.append("\n✅ AUTO-FIX AVAILABLE")
-                issues.append(f"  Click 'Fix Automatically' button to reassign labs to available rooms")
+                issues.append(f"  Click 'Fix Automatically' button to reassign labs")
             else:
-                issues.append("  No lab room conflicts. Try generating batches individually to isolate the issue.")
+                issues.append("🔍 ROOT CAUSE:")
+                issues.append("  No obvious conflicts. Try generating batches individually.")
+        
+        # Show teacher conflicts if any
+        if teacher_conflicts:
+            issues.append("\n⚠️  TEACHER CONFLICTS:")
+            for conflict in teacher_conflicts:
+                teacher_name = conflict["teacher"]
+                total_hours = conflict["total_hours"]
+                available = conflict["available_slots"]
+                issues.append(f"  • {teacher_name} - Requires {total_hours} hours but only {available} slots available")
+        
+        # Show capacity diagnostics LAST
+        issues.append("\n📊 CAPACITY ANALYSIS:")
+        
+        total_slots_needed_by_batch = defaultdict(int)
+        seen_batch_subjects = set()
+        
+        for t in tasks:
+            batch_year = t["batch_year"]
+            dept_code = t["dept_code"]
+            subject_id = t["subject"].id
+            key = (batch_year, dept_code, subject_id)
+            
+            if key not in seen_batch_subjects:
+                seen_batch_subjects.add(key)
+                needed = t["theory_credits"] + (t["lab_credits"] * 3)
+                batch_key = f"{batch_year}{dept_code}"
+                total_slots_needed_by_batch[batch_key] += needed
+            
+        total_slots_available = 0
+        for d in range(4):
+            total_slots_available += (max_slots_per_day or 8)
+        total_slots_available += max_slots_friday
+            
+        for batch_key, needed in sorted(total_slots_needed_by_batch.items()):
+            issues.append(f"  • Batch {batch_key}: {needed} slots needed / {total_slots_available} available")
+        
+        # General suggestions LAST
+        if not teacher_conflicts and not lab_room_conflicts:
+            issues.append("\n💡 SUGGESTIONS:")
+            issues.append("  1. Check teacher restrictions")
+            issues.append("  2. Try generating batches individually")
         
         error_msg = f"Timetable generation failed (Status: {solver.StatusName(status)})\n\n" + "\n".join(issues)
         print(f"\n[SOLVER ERROR]\n{error_msg}")
