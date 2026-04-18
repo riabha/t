@@ -2169,7 +2169,15 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 issues.append(f"  Click 'Fix Automatically' button to reassign labs")
             else:
                 issues.append("🔍 ROOT CAUSE:")
-                issues.append("  No obvious conflicts. Try generating batches individually.")
+                issues.append("\n⚠️  HIDDEN CONSTRAINT CONFLICT")
+                issues.append("  The CP-SAT solver detected a conflict during presolve, but the exact")
+                issues.append("  constraint cannot be identified. This usually means:")
+                issues.append("  • Teacher time slot conflicts with already-generated batches")
+                issues.append("  • Lab room booking conflicts across batches")
+                issues.append("  • Combination constraints making scheduling impossible")
+                issues.append("\n💡 RECOMMENDED FIX:")
+                issues.append("  Try generating in REGULAR mode (not sequential) - this allows")
+                issues.append("  the solver to optimize across all batches simultaneously.")
         
         # Show teacher conflicts if any
         if teacher_conflicts:
@@ -2180,37 +2188,12 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 available = conflict["available_slots"]
                 issues.append(f"  • {teacher_name} - Requires {total_hours} hours but only {available} slots available")
         
-        # Show capacity diagnostics LAST
-        issues.append("\n📊 CAPACITY ANALYSIS:")
-        
-        total_slots_needed_by_batch = defaultdict(int)
-        seen_batch_subjects = set()
-        
-        for t in tasks:
-            batch_year = t["batch_year"]
-            dept_code = t["dept_code"]
-            subject_id = t["subject"].id
-            key = (batch_year, dept_code, subject_id)
-            
-            if key not in seen_batch_subjects:
-                seen_batch_subjects.add(key)
-                needed = t["theory_credits"] + (t["lab_credits"] * 3)
-                batch_key = f"{batch_year}{dept_code}"
-                total_slots_needed_by_batch[batch_key] += needed
-            
-        total_slots_available = 0
-        for d in range(4):
-            total_slots_available += (max_slots_per_day or 8)
-        total_slots_available += max_slots_friday
-            
-        for batch_key, needed in sorted(total_slots_needed_by_batch.items()):
-            issues.append(f"  • Batch {batch_key}: {needed} slots needed / {total_slots_available} available")
-        
         # General suggestions LAST
         if not teacher_conflicts and not lab_room_conflicts:
             issues.append("\n💡 SUGGESTIONS:")
             issues.append("  1. Check teacher restrictions")
             issues.append("  2. Try generating batches individually")
+            issues.append("  3. Try regular mode (not sequential)")
         
         error_msg = f"Timetable generation failed (Status: {solver.StatusName(status)})\n\n" + "\n".join(issues)
         print(f"\n[SOLVER ERROR]\n{error_msg}")
