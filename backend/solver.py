@@ -423,6 +423,68 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     # Remove matched tasks from solver so they don't get duplicate CP-SAT slots
     tasks = [t for t in tasks if t not in tasks_to_remove]
 
+    # ── PRE-SOLVE VALIDATION ───────────────────────────────────
+    # Detect common configuration errors BEFORE running the solver
+    # This provides immediate, actionable error messages to users
+    
+    validation_errors = []
+    
+    # 1. Check for lab subjects without lab rooms
+    missing_lab_rooms = []
+    for task in tasks:
+        if task["lab_credits"] > 0 and not task["lab_room_id"]:
+            batch_name = f"{task['batch_year']}{task['dept_code']}"
+            sections_str = ", ".join([section_map[sid].display_name for sid in task["section_ids"]])
+            missing_lab_rooms.append({
+                "subject": task["subject"].code,
+                "subject_name": task["subject"].full_name,
+                "batch": batch_name,
+                "sections": sections_str
+            })
+    
+    if missing_lab_rooms:
+        validation_errors.append("\n❌ MISSING LAB ROOMS:")
+        validation_errors.append("The following lab subjects do not have lab rooms assigned:\n")
+        for item in missing_lab_rooms:
+            validation_errors.append(f"  • {item['subject']} ({item['subject_name']})")
+            validation_errors.append(f"    Batch: {item['batch']}, Sections: {item['sections']}")
+        validation_errors.append("\n✅ HOW TO FIX:")
+        validation_errors.append("  1. Go to Assignments page")
+        validation_errors.append("  2. Find the assignments listed above")
+        validation_errors.append("  3. Click Edit and assign a Lab Room")
+        validation_errors.append("  4. Save and try generating again\n")
+    
+    # 2. Check for subjects without teachers
+    missing_teachers = []
+    for task in tasks:
+        if task["theory_credits"] > 0 and not task["teacher_id"]:
+            batch_name = f"{task['batch_year']}{task['dept_code']}"
+            sections_str = ", ".join([section_map[sid].display_name for sid in task["section_ids"]])
+            missing_teachers.append({
+                "subject": task["subject"].code,
+                "subject_name": task["subject"].full_name,
+                "batch": batch_name,
+                "sections": sections_str
+            })
+    
+    if missing_teachers:
+        validation_errors.append("\n❌ MISSING TEACHERS:")
+        validation_errors.append("The following subjects do not have teachers assigned:\n")
+        for item in missing_teachers:
+            validation_errors.append(f"  • {item['subject']} ({item['subject_name']})")
+            validation_errors.append(f"    Batch: {item['batch']}, Sections: {item['sections']}")
+        validation_errors.append("\n✅ HOW TO FIX:")
+        validation_errors.append("  1. Go to Assignments page")
+        validation_errors.append("  2. Find the assignments listed above")
+        validation_errors.append("  3. Click Edit and assign a Teacher")
+        validation_errors.append("  4. Save and try generating again\n")
+    
+    # If validation errors found, fail immediately with clear instructions
+    if validation_errors:
+        error_msg = "Timetable generation cannot proceed due to configuration errors:\n" + "\n".join(validation_errors)
+        print(f"\n[PRE-SOLVE VALIDATION FAILED]\n{error_msg}")
+        raise ValueError(error_msg)
+    
     # ── PRE-SOLVE TEACHER CONFLICT DETECTION ───────────────────
     # Detect teachers who have multiple conflicting assignments that cannot be scheduled
     # This helps provide actionable error messages to users before running the solver
