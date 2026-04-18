@@ -454,26 +454,54 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         validation_errors.append("  3. Click Edit and assign a Lab Room")
         validation_errors.append("  4. Save and try generating again\n")
     
-    # 2. Check for subjects without teachers (WARNING only, not blocking)
-    missing_teachers = []
+    # 2. Auto-create placeholder teachers for subjects without teachers
+    auto_created_teachers = []
     for task in tasks:
         if task["theory_credits"] > 0 and not task["teacher_id"]:
-            batch_name = f"{task['batch_year']}{task['dept_code']}"
-            sections_str = ", ".join([section_map[sid].display_name for sid in task["section_ids"]])
-            missing_teachers.append({
-                "subject": task["subject"].code,
-                "subject_name": task["subject"].full_name,
-                "batch": batch_name,
-                "sections": sections_str
-            })
+            subject_code = task["subject"].code
+            dept_id = task["subject"].department_id
+            
+            # Check if placeholder teacher already exists
+            placeholder_name = f"TBD-{subject_code}"
+            existing = db.query(Teacher).filter(
+                Teacher.name == placeholder_name,
+                Teacher.department_id == dept_id
+            ).first()
+            
+            if existing:
+                placeholder_teacher = existing
+            else:
+                # Create new placeholder teacher
+                placeholder_teacher = Teacher(
+                    name=placeholder_name,
+                    designation="To Be Decided",
+                    max_contact_hours=40,
+                    department_id=dept_id,
+                    is_lab_engineer=False,
+                    restriction_mode="preferred"
+                )
+                db.add(placeholder_teacher)
+                db.flush()  # Get the ID without committing
+                teacher_map[placeholder_teacher.id] = placeholder_teacher
+                auto_created_teachers.append({
+                    "subject": subject_code,
+                    "teacher_name": placeholder_name,
+                    "teacher_id": placeholder_teacher.id
+                })
+            
+            # Update task with placeholder teacher
+            task["teacher_id"] = placeholder_teacher.id
+            
+            # Update assignment in database
+            asgn = task["assignment"]
+            asgn.teacher_id = placeholder_teacher.id
     
-    if missing_teachers:
-        print("\n⚠️  WARNING - MISSING TEACHERS:")
-        print("The following subjects do not have teachers assigned (slots will be empty):\n")
-        for item in missing_teachers:
-            print(f"  • {item['subject']} ({item['subject_name']})")
-            print(f"    Batch: {item['batch']}, Sections: {item['sections']}")
-        print("\n💡 TIP: Assign teachers in Assignments page for complete timetable\n")
+    if auto_created_teachers:
+        db.commit()  # Commit placeholder teachers
+        print("\n🤖 AUTO-CREATED PLACEHOLDER TEACHERS:")
+        for item in auto_created_teachers:
+            print(f"  • {item['teacher_name']} for subject {item['subject']}")
+        print("\n💡 TIP: Replace placeholder teachers in Assignments page later\n")
     
     # If validation errors found (only critical errors like missing lab rooms), fail immediately
     if validation_errors:
@@ -1738,38 +1766,96 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     status = solver.Solve(model)
     print(f"[SOLVER] Status: {solver.StatusName(status)}, Time: {solver.WallTime():.2f}s")
     
-        # If INFEASIBLE, try to find the EXACT conflicting constraints
+    # If INFEASIBLE, provide detailed constraint-level diagnostics
     if status == cp_model.INFEASIBLE:
         print("\n[SOLVER] INFEASIBLE - Analyzing conflicts...")
         print("This means the constraints cannot all be satisfied together.")
         
-        # Detailed diagnostics for 23BAE
-        print("\n=== DETAILED CONSTRAINT ANALYSIS ===")
+        # Collect detailed constraint violations
+        constraint_issues = []
+        
+        # 1. Check for over-constrained teachers
         for ti, task in enumerate(tasks):
             batch_name = f"{task['batch_year']}{task['dept_code']}"
             subject_code = task['subject'].code
             teacher_id = task.get('teacher_id')
             teacher_name = teacher_map.get(teacher_id).name if teacher_id and teacher_id in teacher_map else "N/A"
             
-            # Check theory slots
+            # Count available slots for this task
             theory_vars = [(d, s) for (t, d, s) in x_theory.keys() if t == ti]
-            # Check lab slots
             lab_vars = [(d, ls) for (t, d, ls) in x_lab.keys() if t == ti]
             
-            # Check teacher restrictions
-            restricted = restricted_slots.get(teacher_id, set()) if teacher_id else set()
+            needed_theory = task['theory_credits']
+            needed_lab = task['lab_credits']
             
-            print(f"\nTask {ti}: {batch_name} - {subject_code}")
-            print(f"  Teacher: {teacher_name}")
-            print(f"  Theory: {task['theory_credits']}h, Lab: {task['lab_credits']}h")
-            print(f"  Theory slot options: {len(theory_vars)}")
-            print(f"  Lab slot options: {len(lab_vars)}")
-            print(f"  Teacher restricted slots: {len(restricted)}")
+            # Check if task has enough slot options
+            if needed_theory > 0 and len(theory_vars) < needed_theory:
+                constraint_issues.append({
+                    "type": "INSUFFICIENT_THEORY_SLOTS",
+                    "batch": batch_name,
+                    "subject": subject_code,
+                    "teacher": teacher_name,
+                    "needed": needed_theory,
+                    "available": len(theory_vars),
+                    "deficit": needed_theory - len(theory_vars)
+                })
             
-            if len(restricted) > 25:
-                print(f"  ⚠️  WARNING: Teacher has {len(restricted)} restricted slots (out of 32 total)")
+            if needed_lab > 0 and len(lab_vars) < needed_lab:
+                constraint_issues.append({
+                    "type": "INSUFFICIENT_LAB_SLOTS",
+                    "batch": batch_name,
+                    "subject": subject_code,
+                    "teacher": teacher_name,
+                    "needed": needed_lab,
+                    "available": len(lab_vars),
+                    "deficit": needed_lab - len(lab_vars)
+                })
         
-        print("\nMost common causes:")
+        # 2. Check for teacher slot exhaustion
+        teacher_slot_usage = defaultdict(int)
+        for ti, task in enumerate(tasks):
+            teacher_id = task.get('teacher_id')
+            if teacher_id:
+                teacher_slot_usage[teacher_id] += task['theory_credits']
+        
+        for teacher_id, needed_slots in teacher_slot_usage.items():
+            restricted = restricted_slots.get(teacher_id, set())
+            available_slots = sum(1 for d in DAYS for s in schedulable_slots[d] if (d, s) not in restricted)
+            
+            if needed_slots > available_slots:
+                teacher_name = teacher_map.get(teacher_id).name if teacher_id in teacher_map else f"ID {teacher_id}"
+                constraint_issues.append({
+                    "type": "TEACHER_OVERLOADED",
+                    "teacher": teacher_name,
+                    "needed": needed_slots,
+                    "available": available_slots,
+                    "restrictions": len(restricted)
+                })
+        
+        # Print detailed constraint violations
+        if constraint_issues:
+            print("\n🔍 DETAILED CONSTRAINT VIOLATIONS:")
+            for issue in constraint_issues:
+                if issue["type"] == "INSUFFICIENT_THEORY_SLOTS":
+                    print(f"\n  ❌ {issue['batch']} - {issue['subject']} ({issue['teacher']})")
+                    print(f"     Needs {issue['needed']} theory slots but only {issue['available']} available")
+                    print(f"     Deficit: {issue['deficit']} slots")
+                    print(f"     → Teacher may have too many restrictions or conflicts with other batches")
+                
+                elif issue["type"] == "INSUFFICIENT_LAB_SLOTS":
+                    print(f"\n  ❌ {issue['batch']} - {issue['subject']} (Lab)")
+                    print(f"     Needs {issue['needed']} lab blocks but only {issue['available']} available")
+                    print(f"     Deficit: {issue['deficit']} lab blocks")
+                    print(f"     → Lab room may be over-booked or lab timing constraints too strict")
+                
+                elif issue["type"] == "TEACHER_OVERLOADED":
+                    print(f"\n  ❌ Teacher: {issue['teacher']}")
+                    print(f"     Needs {issue['needed']} total slots but only {issue['available']} available")
+                    print(f"     Has {issue['restrictions']} restricted slots")
+                    print(f"     → Remove {issue['needed'] - issue['available']} restrictions or reassign subjects")
+        
+        print("\n" + "="*70)
+        print("Most common causes:")
         print("  1. Teacher restrictions blocking too many slots")
         print("  2. Lab room availability constraints")
         print("  3. Consecutive lecture requirements")
