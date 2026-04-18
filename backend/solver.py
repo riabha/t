@@ -454,7 +454,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         validation_errors.append("  3. Click Edit and assign a Lab Room")
         validation_errors.append("  4. Save and try generating again\n")
     
-    # 2. Check for subjects without teachers
+    # 2. Check for subjects without teachers (WARNING only, not blocking)
     missing_teachers = []
     for task in tasks:
         if task["theory_credits"] > 0 and not task["teacher_id"]:
@@ -468,18 +468,14 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
             })
     
     if missing_teachers:
-        validation_errors.append("\n❌ MISSING TEACHERS:")
-        validation_errors.append("The following subjects do not have teachers assigned:\n")
+        print("\n⚠️  WARNING - MISSING TEACHERS:")
+        print("The following subjects do not have teachers assigned (slots will be empty):\n")
         for item in missing_teachers:
-            validation_errors.append(f"  • {item['subject']} ({item['subject_name']})")
-            validation_errors.append(f"    Batch: {item['batch']}, Sections: {item['sections']}")
-        validation_errors.append("\n✅ HOW TO FIX:")
-        validation_errors.append("  1. Go to Assignments page")
-        validation_errors.append("  2. Find the assignments listed above")
-        validation_errors.append("  3. Click Edit and assign a Teacher")
-        validation_errors.append("  4. Save and try generating again\n")
+            print(f"  • {item['subject']} ({item['subject_name']})")
+            print(f"    Batch: {item['batch']}, Sections: {item['sections']}")
+        print("\n💡 TIP: Assign teachers in Assignments page for complete timetable\n")
     
-    # If validation errors found, fail immediately with clear instructions
+    # If validation errors found (only critical errors like missing lab rooms), fail immediately
     if validation_errors:
         error_msg = "Timetable generation cannot proceed due to configuration errors:\n" + "\n".join(validation_errors)
         print(f"\n[PRE-SOLVE VALIDATION FAILED]\n{error_msg}")
