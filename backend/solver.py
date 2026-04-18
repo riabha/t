@@ -2161,6 +2161,58 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
             issues.append("  4. Check for conflicting assignments across other active/generated timetables")
             issues.append("  5. Try generation on individual batches to isolate the problematic batch")
         
+        # Add detailed constraint violations from earlier analysis
+        if constraint_issues:
+            issues.append("\n🔍 DETAILED CONSTRAINT VIOLATIONS:")
+            for issue in constraint_issues:
+                if issue["type"] == "INSUFFICIENT_THEORY_SLOTS":
+                    issues.append(f"\n  ❌ {issue['batch']} - {issue['subject']} ({issue['teacher']})")
+                    issues.append(f"     Needs {issue['needed']} theory slots but only {issue['available']} available")
+                    issues.append(f"     Deficit: {issue['deficit']} slots")
+                    issues.append(f"     → Teacher may have too many restrictions or conflicts with other batches")
+                
+                elif issue["type"] == "INSUFFICIENT_LAB_SLOTS":
+                    issues.append(f"\n  ❌ {issue['batch']} - {issue['subject']} (Lab)")
+                    issues.append(f"     Needs {issue['needed']} lab blocks but only {issue['available']} available")
+                    issues.append(f"     Deficit: {issue['deficit']} lab blocks")
+                    issues.append(f"     → Lab room may be over-booked or lab timing constraints too strict")
+                
+                elif issue["type"] == "TEACHER_OVERLOADED":
+                    issues.append(f"\n  ❌ Teacher: {issue['teacher']}")
+                    issues.append(f"     Needs {issue['needed']} total slots but only {issue['available']} available")
+                    issues.append(f"     Has {issue['restrictions']} restricted slots")
+                    issues.append(f"     → Remove {issue['needed'] - issue['available']} restrictions or reassign subjects")
+        else:
+            # Add global constraint analysis to error message
+            issues.append("\n🔍 GLOBAL CONSTRAINT ANALYSIS:")
+            
+            # Check for lab room over-booking
+            lab_room_usage = defaultdict(lambda: defaultdict(int))
+            for ti, task in enumerate(tasks):
+                if task['lab_credits'] > 0 and task.get('lab_room_id'):
+                    lab_room_id = task['lab_room_id']
+                    for d in range(5):
+                        lab_room_usage[lab_room_id][d] += 1
+            
+            lab_conflicts_found = False
+            for room_id, day_usage in lab_room_usage.items():
+                room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
+                for day, count in day_usage.items():
+                    max_labs_per_day = len(lab_starts.get(day, []))
+                    if count > max_labs_per_day:
+                        if not lab_conflicts_found:
+                            issues.append("\n⚠️  LAB ROOM CONFLICTS:")
+                            lab_conflicts_found = True
+                        day_name = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"][day]
+                        issues.append(f"  • {room_name} on {day_name}: {count} labs assigned but only {max_labs_per_day} lab slots available")
+            
+            if lab_conflicts_found:
+                issues.append("\n✅ HOW TO FIX:")
+                issues.append("  1. Go to Assignments page")
+                issues.append("  2. Find lab subjects using the over-booked rooms")
+                issues.append("  3. Reassign some labs to different rooms (Lab-01, Lab-02, etc.)")
+                issues.append("  4. Or use generic labs for subjects that don't need specialized equipment")
+        
         error_msg = f"Timetable generation failed (Status: {solver.StatusName(status)})\n\n" + "\n".join(issues)
         print(f"\n[SOLVER ERROR]\n{error_msg}")
         
