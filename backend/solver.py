@@ -1707,6 +1707,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     # 2. Check teacher total load vs available slots
     # IMPORTANT: Labs are taught by lab engineers, NOT by theory teachers.
     # Only count theory hours for the teacher, and lab hours for the lab engineer separately.
+    # CRITICAL: Sections in the same assignment are scheduled TOGETHER, so count hours only ONCE per assignment
     teacher_load = defaultdict(lambda: {"theory": 0, "lab_blocks": 0, "sections": set(), "subjects": []})
     for ti, task in enumerate(tasks):
         tid = task.get("teacher_id")
@@ -1715,15 +1716,15 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         if tid:
             for sid in task["section_ids"]:
                 teacher_load[tid]["sections"].add(section_map[sid].display_name if sid in section_map else str(sid))
-            # Only count THEORY hours for the teacher
-            teacher_load[tid]["theory"] += task["theory_credits"] * len(task["section_ids"])
+            # Only count THEORY hours for the teacher (NOT multiplied by sections - they're together!)
+            teacher_load[tid]["theory"] += task["theory_credits"]
             teacher_load[tid]["subjects"].append(task["subject"].code)
         
         if le_id and task["lab_credits"] > 0:
             for sid in task["section_ids"]:
                 teacher_load[le_id]["sections"].add(section_map[sid].display_name if sid in section_map else str(sid))
-            # Count LAB hours for the lab engineer
-            teacher_load[le_id]["lab_blocks"] += task["lab_credits"] * len(task["section_ids"])
+            # Count LAB hours for the lab engineer (NOT multiplied by sections - they're together!)
+            teacher_load[le_id]["lab_blocks"] += task["lab_credits"]
             teacher_load[le_id]["subjects"].append(task["subject"].code + " (Lab)")
     
     for tid, load in teacher_load.items():
@@ -1742,7 +1743,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
             restriction_count = len(restricted_slots[tid])
             pre_validation_errors.append(
                 f"• Teacher '{teacher_name}' is OVERLOADED: needs {total_needed}h total "
-                f"({load['theory']}h theory + {load['lab_blocks']} lab blocks) "
+                f"({load['theory']}h theory + {load['lab_blocks']} lab blocks × 3h) "
                 f"but only {total_available}h available ({restriction_count} slots restricted). "
                 f"Subjects: {', '.join(set(load['subjects']))}. "
                 f"Fix: Remove {deficit} hours of assignments OR reduce {deficit} restrictions."
@@ -1772,6 +1773,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     # Get ALL assignments in this session (not just target batches)
     if session_id:
         all_session_assignments = db.query(Assignment).filter(Assignment.session_id == session_id).all()
+        print(f"\n[CONFLICT CHECK] Checking {len(all_session_assignments)} total assignments in session")
         for asgn in all_session_assignments:
             subj = subject_map.get(asgn.subject_id)
             if subj and subj.lab_credits > 0 and asgn.lab_room_id:
@@ -1779,6 +1781,11 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 # Count per day (each lab needs to fit in one day)
                 for d in range(5):
                     lab_room_usage[asgn.lab_room_id][d] += 1
+        
+        print(f"[CONFLICT CHECK] Lab room usage across all batches:")
+        for room_id, usage in lab_room_usage.items():
+            room_name = room_map.get(room_id).name if room_id in room_map else f"Room {room_id}"
+            print(f"  {room_name}: {usage['all']} labs total")
     else:
         # Fallback: only check current tasks
         for ti, task in enumerate(tasks):
@@ -1802,7 +1809,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                     "available": max_labs_per_day,
                     "overflow": count - max_labs_per_day
                 })
+                print(f"[CONFLICT CHECK] ⚠️  {room_name} day {day}: {count} labs but only {max_labs_per_day} slots")
 
+    print(f"\n[SOLVER] Starting CP-SAT solver with {len(tasks)} tasks, {len(x_theory)} theory vars, {len(x_lab)} lab vars")
     status = solver.Solve(model)
     print(f"[SOLVER] Status: {solver.StatusName(status)}, Time: {solver.WallTime():.2f}s")
     
