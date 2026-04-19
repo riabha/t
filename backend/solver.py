@@ -183,6 +183,10 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     max_slots_friday = max_slots_friday if max_slots_friday is not None else conf.max_slots_friday
     friday_has_break = friday_has_break if friday_has_break is not None else conf.friday_has_break
     
+    # DEBUG: Show what settings are being used
+    print(f"[SOLVER CONFIG] max_slots_per_day={max_slots_per_day}, max_slots_friday={max_slots_friday}, break_slot={break_slot}")
+    print(f"[SOLVER CONFIG] Available slots: Mon-Thu={(max_slots_per_day-1)*4}, Fri={max_slots_friday}, Total={(max_slots_per_day-1)*4 + max_slots_friday}")
+    
     gap_penalty = conf.gap_penalty
     workload_penalty = conf.workload_penalty
     early_slot_penalty = conf.early_slot_penalty
