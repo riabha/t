@@ -372,6 +372,49 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         db.refresh(tt)
         return tt
 
+    # ── PRIORITY SCHEDULING: Sort tasks by teacher restriction severity ───
+    # Schedule teachers with STRICT restrictions first, then PREFERRED, then no restrictions
+    # This ensures constrained teachers get first pick of available slots
+    print(f"[SOLVER] Sorting {len(tasks)} tasks by teacher restriction priority...")
+    
+    def get_task_priority(task):
+        """
+        Return priority score for task scheduling order.
+        Lower score = higher priority (scheduled first)
+        """
+        teacher_id = task.get("teacher_id")
+        if not teacher_id or teacher_id not in teacher_map:
+            return 999  # No teacher = lowest priority
+        
+        teacher = teacher_map[teacher_id]
+        restriction_count = len(restricted_slots.get(teacher_id, set()))
+        
+        # Priority order:
+        # 1. Strict mode with many restrictions (score 0-100)
+        # 2. Preferred mode with many restrictions (score 100-200)
+        # 3. Teachers with few/no restrictions (score 200+)
+        
+        if teacher.restriction_mode == 'strict':
+            return 0 + (100 - restriction_count)  # More restrictions = higher priority
+        elif teacher.restriction_mode == 'preferred':
+            return 100 + (100 - restriction_count)
+        else:
+            return 200 + (100 - restriction_count)
+    
+    tasks.sort(key=get_task_priority)
+    
+    # Log the scheduling order
+    print("[SOLVER] Task scheduling order:")
+    for i, task in enumerate(tasks[:10]):  # Show first 10
+        teacher_id = task.get("teacher_id")
+        if teacher_id and teacher_id in teacher_map:
+            teacher = teacher_map[teacher_id]
+            restriction_count = len(restricted_slots.get(teacher_id, set()))
+            print(f"  {i+1}. {task['batch_year']}{task['dept_code']} - {task['subject'].code} "
+                  f"({teacher.name}, {teacher.restriction_mode}, {restriction_count} restrictions)")
+    if len(tasks) > 10:
+        print(f"  ... and {len(tasks) - 10} more tasks")
+
     # ── Identify Rule-Restricted sections (FYP, Seminar, etc.) ───
     # Map: section_id -> list of dict with lock info
     section_locks = defaultdict(list)
