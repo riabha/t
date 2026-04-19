@@ -281,15 +281,30 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     # Cross-Dept Clashes: Load slots from other GENERATED or ACTIVE timetables
     # IMPORTANT: Ignore slots that belong to the SAME department we are currently generating
     # to avoid conflicting with older versions of ourselves.
-    query = db.query(TimetableSlot).join(Timetable).filter(
-        Timetable.status.in_(["generated", "active"])
-    )
+    # EXCEPTION: If timetable_id is provided (incremental/sequential mode), we MUST include
+    # slots from that specific timetable as they represent already-scheduled batches.
     
-    if target_dept_id:
-        # Exclude slots from sections belonging to the target department
-        query = query.join(Section).join(Batch).filter(Batch.department_id != target_dept_id)
+    if timetable_id:
+        # INCREMENTAL MODE: Load slots from the target timetable (already-scheduled batches)
+        # These slots MUST be respected as hard constraints for shared teachers/rooms
+        print(f"[INCREMENTAL MODE] Loading existing slots from timetable ID {timetable_id}")
+        existing_slots = db.query(TimetableSlot).filter(
+            TimetableSlot.timetable_id == timetable_id
+        ).all()
+        print(f"[INCREMENTAL MODE] Loaded {len(existing_slots)} existing slots as constraints")
+    else:
+        # NORMAL MODE: Load slots from other departments' timetables only
+        query = db.query(TimetableSlot).join(Timetable).filter(
+            Timetable.status.in_(["generated", "active"])
+        )
+        
+        if target_dept_id:
+            # Exclude slots from sections belonging to the target department
+            query = query.join(Section).join(Batch).filter(Batch.department_id != target_dept_id)
+        
+        existing_slots = query.all()
     
-    existing_slots = query.all()
+    # Apply existing slots as teacher/lab engineer restrictions
     for s in existing_slots:
         if s.teacher_id:
             restricted_slots[s.teacher_id].add((s.day, s.slot_index))
