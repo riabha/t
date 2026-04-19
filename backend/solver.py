@@ -1737,16 +1737,29 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 if (d, s) not in restricted_slots[tid]:
                     total_available += 1
         
+        teacher_name = teacher_map.get(tid).name if teacher_map.get(tid) else str(tid)
+        restriction_count = len(restricted_slots[tid])
+        
+        # Warn if teacher has many restrictions (even if not technically overloaded)
+        if restriction_count > 12:  # More than 12 restrictions is excessive
+            print(f"[WARNING] Teacher '{teacher_name}' has {restriction_count} restrictions - may cause scheduling issues")
+        
         if total_needed > total_available:
-            teacher_name = teacher_map.get(tid).name if teacher_map.get(tid) else str(tid)
             deficit = total_needed - total_available
-            restriction_count = len(restricted_slots[tid])
             pre_validation_errors.append(
                 f"• Teacher '{teacher_name}' is OVERLOADED: needs {total_needed}h total "
                 f"({load['theory']}h theory + {load['lab_blocks']} lab blocks × 3h) "
                 f"but only {total_available}h available ({restriction_count} slots restricted). "
                 f"Subjects: {', '.join(set(load['subjects']))}. "
                 f"Fix: Remove {deficit} hours of assignments OR reduce {deficit} restrictions."
+            )
+        elif restriction_count > 15 and total_needed > total_available * 0.5:
+            # Teacher has excessive restrictions and is using >50% of available slots
+            pre_validation_errors.append(
+                f"• Teacher '{teacher_name}' has EXCESSIVE RESTRICTIONS: {restriction_count} slots restricted, "
+                f"needs {total_needed}h but only {total_available}h available. "
+                f"With other constraints (labs, breaks, combinations), scheduling may be impossible. "
+                f"Fix: Remove some restrictions for this teacher."
             )
     
     # If there are pre-validation errors, fail early with actionable message
