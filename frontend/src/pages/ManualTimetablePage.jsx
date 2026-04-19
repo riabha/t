@@ -259,6 +259,7 @@ export default function ManualTimetablePage() {
                 teacher_id: draggedItem.is_lab ? null : draggedItem.teacher_id,
                 lab_engineer_id: draggedItem.is_lab ? draggedItem.lab_engineer_id : null,
                 room_id: draggedItem.room_id,
+                room_explicitly_set: draggedItem.room_explicitly_set || false,
                 is_lab: draggedItem.is_lab
             });
 
@@ -670,6 +671,7 @@ export default function ManualTimetablePage() {
                                                             subject_id: subj.id,
                                                             teacher_id: assignment?.teacher_id || subj.teacher_id || teachers[0]?.id || 1,
                                                             room_id: assignment?.room_id || subj.room_id || rooms[0]?.id || 1,
+                                                            room_explicitly_set: !!(assignment?.room_id || subj.room_id),
                                                             is_lab: false
                                                         })}
                                                         className={`px-3 py-2 ${color.bg} ${color.text} border-2 ${color.border} rounded-lg cursor-move font-bold text-sm hover:scale-105 transition shadow-sm`}>
@@ -685,6 +687,7 @@ export default function ManualTimetablePage() {
                                                             teacher_id: assignment?.teacher_id || subj.teacher_id,
                                                             lab_engineer_id: assignment?.lab_engineer_id || subj.lab_engineer_id || assignment?.teacher_id || subj.teacher_id,
                                                             room_id: assignment?.lab_room_id || subj.lab_room_id || assignment?.room_id || subj.room_id || rooms[0]?.id || 1,
+                                                            room_explicitly_set: !!(assignment?.lab_room_id || subj.lab_room_id || assignment?.room_id || subj.room_id),
                                                             is_lab: true
                                                         })}
                                                         className={`px-3 py-2 ${color.bg} ${color.text} border-2 ${color.border} rounded-lg cursor-move font-bold text-sm hover:scale-105 transition shadow-sm`}>

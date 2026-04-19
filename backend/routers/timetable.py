@@ -663,8 +663,9 @@ def check_clash(data: dict, db: Session = Depends(get_db)):
                     f"in timetable '{tt.name}'"
                 )
     
-    # Check room clash in the same timetable
-    if room_id:
+    # Check room clash in the same timetable (skip if room_id is a fallback default)
+    # Only check room clash if explicitly provided (not a fallback)
+    if room_id and data.get('room_explicitly_set'):
         slots_to_check = [slot_index]
         if is_lab:
             slots_to_check = [slot_index, slot_index + 1, slot_index + 2]
