@@ -105,3 +105,138 @@ def fix_lab_room_conflicts(
         "message": f"Successfully reassigned {len(changes)} labs to resolve conflicts",
         "changes": changes
     }
+
+
+
+@router.post("/teacher-restrictions")
+def fix_teacher_restrictions(
+    teacher_id: int,
+    keep_count: int = 8,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("super_admin", "program_admin"))
+):
+    """
+    Reduce excessive teacher restrictions by keeping only the most important ones.
+    
+    Algorithm:
+    1. Get all restrictions for the teacher
+    2. Keep only 'keep_count' restrictions (default 8)
+    3. Prioritize keeping restrictions on specific days/slots (e.g., Friday afternoon)
+    """
+    from models import TeacherRestriction, Teacher
+    
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher:
+        raise HTTPException(404, "Teacher not found")
+    
+    restrictions = db.query(TeacherRestriction).filter(
+        TeacherRestriction.teacher_id == teacher_id
+    ).all()
+    
+    if len(restrictions) <= keep_count:
+        return {
+            "success": True,
+            "message": f"{teacher.name} has {len(restrictions)} restrictions (within limit of {keep_count})",
+            "removed": 0
+        }
+    
+    # Sort restrictions: prioritize keeping Friday restrictions
+    # Remove restrictions from middle of the week first
+    restrictions_sorted = sorted(restrictions, key=lambda r: (
+        0 if r.day == 4 else 1,  # Keep Friday restrictions
+        abs(r.slot_index - 4)     # Keep restrictions far from middle slots
+    ))
+    
+    # Keep first 'keep_count', remove the rest
+    to_keep = restrictions_sorted[:keep_count]
+    to_remove = restrictions_sorted[keep_count:]
+    
+    removed_info = []
+    for r in to_remove:
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        removed_info.append(f"{day_names[r.day]} slot {r.slot_index + 1}")
+        db.delete(r)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Removed {len(to_remove)} restrictions from {teacher.name}, kept {len(to_keep)}",
+        "removed": len(to_remove),
+        "removed_slots": removed_info
+    }
+
+
+@router.get("/detect-issues")
+def detect_generation_issues(
+    session_id: int,
+    batch_id: int = None,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("super_admin", "program_admin"))
+):
+    """
+    Detect common issues that prevent timetable generation.
+    Returns actionable fixes.
+    """
+    from models import Teacher, TeacherRestriction, Assignment, Subject, Batch, Department
+    
+    issues = []
+    
+    # Get assignments for this session/batch
+    query = db.query(Assignment).filter(Assignment.session_id == session_id)
+    if batch_id:
+        query = query.filter(Assignment.batch_id == batch_id)
+    
+    assignments = query.all()
+    
+    if not assignments:
+        return {"issues": [], "message": "No assignments found"}
+    
+    # Check 1: Teachers with excessive restrictions
+    teacher_ids = set()
+    for asgn in assignments:
+        if asgn.teacher_id:
+            teacher_ids.add(asgn.teacher_id)
+    
+    for tid in teacher_ids:
+        restriction_count = db.query(func.count(TeacherRestriction.id)).filter(
+            TeacherRestriction.teacher_id == tid
+        ).scalar()
+        
+        if restriction_count > 12:
+            teacher = db.query(Teacher).filter(Teacher.id == tid).first()
+            issues.append({
+                "type": "EXCESSIVE_RESTRICTIONS",
+                "severity": "HIGH" if restriction_count > 15 else "MEDIUM",
+                "teacher_id": tid,
+                "teacher_name": teacher.name if teacher else f"ID {tid}",
+                "restriction_count": restriction_count,
+                "fix": f"POST /api/autofix/teacher-restrictions?teacher_id={tid}&keep_count=8",
+                "description": f"{teacher.name if teacher else 'Teacher'} has {restriction_count} restrictions. Reduce to 8-10 for better scheduling."
+            })
+    
+    # Check 2: Lab room conflicts
+    lab_assignments = [a for a in assignments if db.query(Subject).filter(Subject.id == a.subject_id, Subject.lab_credits > 0).first()]
+    room_usage = defaultdict(int)
+    for asgn in lab_assignments:
+        if asgn.lab_room_id:
+            room_usage[asgn.lab_room_id] += 1
+    
+    for room_id, count in room_usage.items():
+        if count > 3:
+            room = db.query(Room).filter(Room.id == room_id).first()
+            issues.append({
+                "type": "LAB_ROOM_OVERBOOKED",
+                "severity": "HIGH",
+                "room_id": room_id,
+                "room_name": room.name if room else f"Room {room_id}",
+                "lab_count": count,
+                "fix": f"POST /api/autofix/lab-room-conflicts?session_id={session_id}",
+                "description": f"{room.name if room else 'Room'} has {count} labs assigned (max 3 per day)"
+            })
+    
+    return {
+        "issues": issues,
+        "count": len(issues),
+        "message": f"Found {len(issues)} potential issues" if issues else "No issues detected"
+    }
