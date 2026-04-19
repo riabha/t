@@ -22,6 +22,9 @@ export default function ManualTimetablePage() {
     const [assignments, setAssignments] = useState([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newTimetableName, setNewTimetableName] = useState('');
+    const [maxSlotsPerDay, setMaxSlotsPerDay] = useState(10);
+    const [maxSlotsFriday, setMaxSlotsFriday] = useState(6);
+    const [breakSlot, setBreakSlot] = useState(2);
 
     useEffect(() => {
         loadData();
@@ -113,6 +116,11 @@ export default function ManualTimetablePage() {
         setActiveTT(id);
         const res = await api.get(`/timetable/${id}`);
         setTTData(res.data);
+        
+        // Load timetable settings
+        if (res.data.max_slots_per_day) setMaxSlotsPerDay(res.data.max_slots_per_day);
+        if (res.data.max_slots_friday) setMaxSlotsFriday(res.data.max_slots_friday);
+        if (res.data.break_slot !== undefined) setBreakSlot(res.data.break_slot);
     };
 
     const handleCreateTimetable = async () => {
@@ -129,7 +137,10 @@ export default function ManualTimetablePage() {
             const res = await api.post('/timetable/create', {
                 name: newTimetableName,
                 department_id: parseInt(selectedDept),
-                session_id: selectedSessionId ? parseInt(selectedSessionId) : null
+                session_id: selectedSessionId ? parseInt(selectedSessionId) : null,
+                max_slots_per_day: maxSlotsPerDay,
+                max_slots_friday: maxSlotsFriday,
+                break_slot: breakSlot
             });
             
             setShowCreateModal(false);
@@ -480,7 +491,7 @@ export default function ManualTimetablePage() {
             )}
 
             {/* Selectors */}
-            <div className="glass p-5 flex gap-4 flex-wrap">
+            <div className="glass p-5 flex gap-4 flex-wrap items-end">
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Department</label>
                     <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
@@ -506,6 +517,27 @@ export default function ManualTimetablePage() {
                         {batches.filter(b => !selectedDept || b.department_id === parseInt(selectedDept))
                             .map(b => <option key={b.id} value={b.id}>{b.display_name}</option>)}
                     </select>
+                </div>
+                
+                <div className="h-8 w-px bg-slate-300"></div>
+                
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Slots/Day (Mon-Thu)</label>
+                    <input type="number" min="8" max="12" value={maxSlotsPerDay}
+                        onChange={e => setMaxSlotsPerDay(parseInt(e.target.value))}
+                        className="px-3 py-2 border rounded-lg w-20" />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Slots Friday</label>
+                    <input type="number" min="4" max="8" value={maxSlotsFriday}
+                        onChange={e => setMaxSlotsFriday(parseInt(e.target.value))}
+                        className="px-3 py-2 border rounded-lg w-20" />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Break Slot</label>
+                    <input type="number" min="0" max="7" value={breakSlot}
+                        onChange={e => setBreakSlot(parseInt(e.target.value))}
+                        className="px-3 py-2 border rounded-lg w-20" />
                 </div>
             </div>
 
@@ -586,55 +618,62 @@ export default function ManualTimetablePage() {
                             <thead>
                                 <tr>
                                     <th className="border p-2 bg-slate-100 text-xs">Day</th>
-                                    {[1,2,3,4,5,6,7,8].map(i => <th key={i} className="border p-2 bg-slate-100 text-xs">Slot {i}</th>)}
+                                    {Array.from({length: maxSlotsPerDay}, (_, i) => (
+                                        <th key={i} className="border p-2 bg-slate-100 text-xs">Slot {i+1}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {['Monday','Tuesday','Wednesday','Thursday','Friday'].map((day, dayIdx) => (
-                                    <tr key={dayIdx}>
-                                        <td className="border p-2 bg-slate-50 font-bold text-sm">{day}</td>
-                                        {[0,1,2,3,4,5,6,7].map(slotIdx => {
-                                            const slot = sectionSlots.find(s => s.day === dayIdx && s.slot_index === slotIdx);
-                                            const color = slot?.subject_code ? getColor(slot.subject_code) : null;
-                                            
-                                            return (
-                                                <td key={slotIdx}
-                                                    onDragOver={e => e.preventDefault()}
-                                                    onDrop={() => handleDrop(section.id, dayIdx, slotIdx)}
-                                                    draggable={!!slot && !slot.is_break}
-                                                    onDragStart={() => {
-                                                        if (slot && !slot.is_break) {
-                                                            setDraggedItem({
-                                                                subject_id: slot.subject_id,
-                                                                teacher_id: slot.teacher_id,
-                                                                lab_engineer_id: slot.lab_engineer_id,
-                                                                room_id: slot.room_id,
-                                                                is_lab: slot.is_lab,
-                                                                from_slot_id: slot.id
-                                                            });
-                                                        }
-                                                    }}
-                                                    className={`border p-2 min-w-[100px] h-16 transition group relative ${
-                                                        slot?.is_break ? 'bg-amber-100 border-amber-300' :
-                                                        slot && color ? `${color.bg} ${color.text} cursor-move` :
-                                                        'bg-white hover:bg-slate-50 cursor-pointer'
-                                                    }`}>
-                                                    {slot?.is_break ? (
-                                                        <div className="text-xs font-bold text-amber-700 text-center">BREAK</div>
-                                                    ) : slot ? (
-                                                        <>
-                                                            <div className="text-xs font-bold">{slot.subject_code}{slot.is_lab ? ' (Pr)' : ''}</div>
-                                                            <button onClick={() => handleDeleteSlot(slot.id)}
-                                                                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100">
-                                                                <HiOutlineTrash className="w-3 h-3" />
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-xs text-slate-300 text-center">Drop</div>
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
+                                {['Monday','Tuesday','Wednesday','Thursday','Friday'].map((day, dayIdx) => {
+                                    const maxSlots = dayIdx === 4 ? maxSlotsFriday : maxSlotsPerDay;
+                                    return (
+                                        <tr key={dayIdx}>
+                                            <td className="border p-2 bg-slate-50 font-bold text-sm">{day}</td>
+                                            {Array.from({length: maxSlots}, (_, slotIdx) => {
+                                                const slot = sectionSlots.find(s => s.day === dayIdx && s.slot_index === slotIdx);
+                                                const color = slot?.subject_code ? getColor(slot.subject_code) : null;
+                                                
+                                                return (
+                                                    <td key={slotIdx}
+                                                        onDragOver={e => e.preventDefault()}
+                                                        onDrop={() => handleDrop(section.id, dayIdx, slotIdx)}
+                                                        draggable={!!slot && !slot.is_break}
+                                                        onDragStart={() => {
+                                                            if (slot && !slot.is_break) {
+                                                                setDraggedItem({
+                                                                    subject_id: slot.subject_id,
+                                                                    teacher_id: slot.teacher_id,
+                                                                    lab_engineer_id: slot.lab_engineer_id,
+                                                                    room_id: slot.room_id,
+                                                                    is_lab: slot.is_lab,
+                                                                    from_slot_id: slot.id
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`border p-2 min-w-[100px] h-16 transition group relative ${
+                                                            slot?.is_break ? 'bg-amber-100 border-amber-300' :
+                                                            slot && color ? `${color.bg} ${color.text} cursor-move` :
+                                                            'bg-white hover:bg-slate-50 cursor-pointer'
+                                                        }`}>
+                                                        {slot?.is_break ? (
+                                                            <div className="text-xs font-bold text-amber-700 text-center">BREAK</div>
+                                                        ) : slot ? (
+                                                            <>
+                                                                <div className="text-xs font-bold">{slot.subject_code}{slot.is_lab ? ' (Pr)' : ''}</div>
+                                                                <button onClick={() => handleDeleteSlot(slot.id)}
+                                                                    className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100">
+                                                                    <HiOutlineTrash className="w-3 h-3" />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="text-xs text-slate-300 text-center">Drop</div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    );
+                                })}
                                     </tr>
                                 ))}
                             </tbody>
