@@ -45,7 +45,7 @@ export default function ManualTimetablePage() {
             api.get('/subjects/'),
             api.get('/teachers/'),
             api.get('/rooms/'),
-            api.get('/settings/config')
+            api.get('/settings/')
         ]);
         
         console.log('=== INITIAL DATA LOAD ===');
