@@ -194,6 +194,30 @@ export default function ManualTimetablePage() {
         }
     };
 
+    const handleSaveSettings = async () => {
+        if (!activeTT) {
+            alert('No timetable selected');
+            return;
+        }
+        
+        try {
+            await api.put(`/timetable/${activeTT}`, {
+                max_slots_per_day: maxSlotsPerDay,
+                max_slots_friday: maxSlotsFriday,
+                break_slot: breakSlot,
+                start_time: startTime,
+                break_start_time: breakStartTime,
+                break_end_time: breakEndTime,
+                class_duration: classDuration
+            });
+            
+            await loadTimetable(activeTT);
+            alert('Settings saved successfully!');
+        } catch (e) {
+            alert(e.response?.data?.detail || 'Failed to save settings');
+        }
+    };
+
     const handleToggleFridayBreak = async () => {
         if (!activeTT || !ttData) return;
         
@@ -461,7 +485,13 @@ export default function ManualTimetablePage() {
             {/* Settings Panel */}
             {showSettings && (
                 <div className="glass p-6">
-                    <h2 className="text-lg font-bold text-slate-800 mb-4">⚙️ Timetable Settings</h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-slate-800">⚙️ Timetable Settings</h2>
+                        <button onClick={handleSaveSettings}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+                            💾 Save Settings
+                        </button>
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Slots/Day (Mon-Thu)</label>
