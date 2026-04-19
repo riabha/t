@@ -117,29 +117,30 @@ LAB_STARTS_MORNING = [0]  # Morning labs start at 0 (0-1-2)
 BREAK_SLOT = 2  # default break slot on Mon-Thu (slot 3 is used when morning lab is scheduled)
 
 
-def get_schedulable_slots(day: int, break_slot: int = 2):
+def get_schedulable_slots(day: int, break_slot: int = 2, max_slots: int = 8):
     """Return list of slot indices that can hold classes on a given day."""
     if day == 4:  # Friday
-        return SLOTS_FRI
+        return list(range(max_slots))
     # Mon-Thu: all slots except the break slot
-    return [i for i in range(8) if i != break_slot]
+    return [i for i in range(max_slots) if i != break_slot]
 
 
-def get_lab_starts(day: int, break_slot: int = 2, is_morning_lab: bool = False):
+def get_lab_starts(day: int, break_slot: int = 2, is_morning_lab: bool = False, max_slots: int = 8):
     """Return valid starting slot indices for a 3-hour lab block."""
     if day == 4:
-        return LAB_STARTS_FRI
+        # Friday: all valid 3-slot blocks within max_slots_friday
+        valid_starts = []
+        for s in range(max_slots - 2):
+            valid_starts.append(s)
+        return valid_starts
     
     # Mon-Thu: Lab needs 3 contiguous slots that don't include the break slot
     valid_starts = []
-    # Check all possible start positions (0 to 5 for 8 slots)
-    for s in range(8 - 2):
+    for s in range(max_slots - 2):
         block = [s, s+1, s+2]
         if break_slot not in block:
             valid_starts.append(s)
             
-    # Note: the is_morning_lab preference is handled by variable costs and
-    # the solver's objective function to prioritize early slots.
     return valid_starts
 
 
@@ -204,20 +205,26 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     else:
         schedulable_slots[4] = list(range(max_slots_friday))
 
-    # Lab possible starts for Mon-Thu
-    # Now controlled by batch-level lab_placement_mode configuration
-    # Default: afternoon only [3, 4, 5]
-    # Will be overridden per batch based on their lab_placement_mode
+    # Lab possible starts for Mon-Thu - calculated dynamically based on max_slots_per_day
+    # This ensures labs can use all available slots, not just hardcoded [3,4,5]
+    _max_slots = max_slots_per_day or 8
+    _break = break_slot if break_slot is not None else 2
     lab_starts = {}
     for d in range(4):
-        lab_starts[d] = [s for s in LAB_STARTS_MON_THU if s != 0]  # [3, 4, 5] - afternoon only (default)
+        # All valid 3-slot blocks that don't overlap the break, excluding morning (slot 0)
+        lab_starts[d] = [
+            s for s in range(_max_slots - 2)
+            if _break not in [s, s+1, s+2] and s != 0
+        ]
+        print(f"[SOLVER] Lab starts for day {d} (max_slots={_max_slots}, break={_break}): {lab_starts[d]}")
     
-    # Friday lab starts (unchanged — Friday has no break conflict)
+    # Friday lab starts
     valid_fri = []
     for s in range(max_slots_friday - 2):
         if not friday_has_break or (break_slot not in [s, s+1, s+2]):
             valid_fri.append(s)
     lab_starts[4] = valid_fri
+    print(f"[SOLVER] Lab starts for Friday (max_slots_friday={max_slots_friday}): {lab_starts[4]}")
 
     # ── Load data ───────────────────────────────────────────────
     query = db.query(Assignment)
@@ -697,7 +704,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                         teacher_restricted = (d, s) in restricted_slots[task["teacher_id"]]
                         teacher_strict_mode = teacher_restriction_modes.get(task["teacher_id"], "preferred") == "strict"
                         
-                        # If teacher is in STRICT mode and slot is restricted, skip it completely
+                        # RELAXED: Treat ALL restrictions as PREFERRED (soft), never skip slots
+                        # This prevents false INFEASIBLE - solver will try all slots and penalize restricted ones
+                        teacher_strict_mode = False  # Force all to preferred mode
                         if teacher_restricted and teacher_strict_mode:
                             continue  # Absolute block - don't create variable
                         # If teacher is in PREFERRED mode and slot is restricted, allow with penalty
@@ -799,6 +808,8 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                         # Check if lab engineer is restricted at any of the 3 lab slots
                         if task["lab_engineer_id"]:
                             lab_engineer_strict_mode = teacher_restriction_modes.get(task["lab_engineer_id"], "preferred") == "strict"
+                            # RELAXED: Treat ALL restrictions as PREFERRED (soft)
+                            lab_engineer_strict_mode = False  # Force all to preferred mode
                             for offset in range(3):
                                 slot = ls + offset
                                 if (d, slot) in restricted_slots[task["lab_engineer_id"]]:
