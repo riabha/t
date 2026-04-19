@@ -1085,6 +1085,10 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
             t_vars = vars_by_task[ti]
             tc_target = tc_base + extra_classes_per_subject  # Target slots
             
+            # Log what we're requiring
+            if extra_classes_per_subject > 0:
+                print(f"[CONSTRAINT] Task {ti} ({task['subject'].code}): {tc_base} base + {extra_classes_per_subject} extra = {tc_target} theory slots required")
+            
             if t_vars:
                 # HARD CONSTRAINT: Theory classes must be EXACTLY tc_target
                 # A 3-credit subject gets exactly 3 slots (or 3+extra if extra is set)
@@ -1152,6 +1156,9 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         if task["lab_credits"] > 0:
             l_vars = lab_vars_by_task[ti]
             lab_count = task["lab_credits"]
+            
+            # Log lab requirements (NOT affected by extra_classes)
+            print(f"[CONSTRAINT] Task {ti} ({task['subject'].code}): {lab_count} lab blocks required (NOT affected by extra_classes)")
             
             if l_vars:
                 # HARD CONSTRAINT: Must schedule exactly lab_credits lab blocks
