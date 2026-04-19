@@ -25,6 +25,11 @@ export default function ManualTimetablePage() {
     const [maxSlotsPerDay, setMaxSlotsPerDay] = useState(10);
     const [maxSlotsFriday, setMaxSlotsFriday] = useState(6);
     const [breakSlot, setBreakSlot] = useState(2);
+    const [startTime, setStartTime] = useState('08:00');
+    const [breakStartTime, setBreakStartTime] = useState('10:30');
+    const [breakEndTime, setBreakEndTime] = useState('11:00');
+    const [classDuration, setClassDuration] = useState(60);
+    const [showSettings, setShowSettings] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -121,6 +126,10 @@ export default function ManualTimetablePage() {
         if (res.data.max_slots_per_day) setMaxSlotsPerDay(res.data.max_slots_per_day);
         if (res.data.max_slots_friday) setMaxSlotsFriday(res.data.max_slots_friday);
         if (res.data.break_slot !== undefined) setBreakSlot(res.data.break_slot);
+        if (res.data.start_time) setStartTime(res.data.start_time);
+        if (res.data.break_start_time) setBreakStartTime(res.data.break_start_time);
+        if (res.data.break_end_time) setBreakEndTime(res.data.break_end_time);
+        if (res.data.class_duration) setClassDuration(res.data.class_duration);
     };
 
     const handleCreateTimetable = async () => {
@@ -409,6 +418,10 @@ export default function ManualTimetablePage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold text-slate-800">Manual Timetable Editor</h1>
                 <div className="flex gap-2">
+                    <button onClick={() => setShowSettings(!showSettings)}
+                        className="px-4 py-2 bg-slate-600 text-white rounded-xl text-sm font-medium hover:bg-slate-700">
+                        ⚙️ {showSettings ? 'Hide' : 'Show'} Settings
+                    </button>
                     {activeTT && ttData && (
                         <button onClick={handleToggleFridayBreak}
                             className={`px-4 py-2 rounded-xl text-sm font-medium ${
@@ -431,6 +444,57 @@ export default function ManualTimetablePage() {
                     )}
                 </div>
             </div>
+
+            {/* Settings Panel */}
+            {showSettings && (
+                <div className="glass p-6">
+                    <h2 className="text-lg font-bold text-slate-800 mb-4">⚙️ Timetable Settings</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Slots/Day (Mon-Thu)</label>
+                            <input type="number" min="8" max="12" value={maxSlotsPerDay}
+                                onChange={e => setMaxSlotsPerDay(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Slots Friday</label>
+                            <input type="number" min="4" max="8" value={maxSlotsFriday}
+                                onChange={e => setMaxSlotsFriday(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Break Slot Index</label>
+                            <input type="number" min="0" max="7" value={breakSlot}
+                                onChange={e => setBreakSlot(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Class Duration (min)</label>
+                            <input type="number" min="50" max="90" step="5" value={classDuration}
+                                onChange={e => setClassDuration(parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Start Time</label>
+                            <input type="time" value={startTime}
+                                onChange={e => setStartTime(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Break Start Time</label>
+                            <input type="time" value={breakStartTime}
+                                onChange={e => setBreakStartTime(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Break End Time</label>
+                            <input type="time" value={breakEndTime}
+                                onChange={e => setBreakEndTime(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Create Timetable Modal */}
             {showCreateModal && (
@@ -517,27 +581,6 @@ export default function ManualTimetablePage() {
                         {batches.filter(b => !selectedDept || b.department_id === parseInt(selectedDept))
                             .map(b => <option key={b.id} value={b.id}>{b.display_name}</option>)}
                     </select>
-                </div>
-                
-                <div className="h-8 w-px bg-slate-300"></div>
-                
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Slots/Day (Mon-Thu)</label>
-                    <input type="number" min="8" max="12" value={maxSlotsPerDay}
-                        onChange={e => setMaxSlotsPerDay(parseInt(e.target.value))}
-                        className="px-3 py-2 border rounded-lg w-20" />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Slots Friday</label>
-                    <input type="number" min="4" max="8" value={maxSlotsFriday}
-                        onChange={e => setMaxSlotsFriday(parseInt(e.target.value))}
-                        className="px-3 py-2 border rounded-lg w-20" />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Break Slot</label>
-                    <input type="number" min="0" max="7" value={breakSlot}
-                        onChange={e => setBreakSlot(parseInt(e.target.value))}
-                        className="px-3 py-2 border rounded-lg w-20" />
                 </div>
             </div>
 
