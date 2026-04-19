@@ -676,10 +676,6 @@ export default function ManualTimetablePage() {
                                 })}
                             </tbody>
                         </table>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     </div>
                 );
             })}
