@@ -1592,7 +1592,10 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     solver.parameters.log_search_progress = True  # Show progress
     solver.parameters.cp_model_presolve = True  # Enable presolve
     solver.parameters.linearization_level = 2  # Maximum linearization
-    solver.parameters.cp_model_probing_level = 2  # More aggressive probing
+    solver.parameters.cp_model_probing_level = 0  # DISABLE aggressive probing that causes false INFEASIBLE
+    
+    # CRITICAL: Relax presolve to avoid false INFEASIBLE during presolve
+    solver.parameters.cp_model_presolve = False  # Disable presolve - let solver try anyway
     
     print(f"[SOLVER] Timeout: {solver.parameters.max_time_in_seconds}s, Workers: {solver.parameters.num_search_workers}")
     
