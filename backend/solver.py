@@ -1740,6 +1740,10 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
         teacher_name = teacher_map.get(tid).name if teacher_map.get(tid) else str(tid)
         restriction_count = len(restricted_slots[tid])
         
+        # Log all teachers with restrictions for debugging
+        if restriction_count > 0:
+            print(f"[TEACHER ANALYSIS] {teacher_name}: {restriction_count} restrictions, needs {total_needed}h, available {total_available}h")
+        
         # Warn if teacher has many restrictions (even if not technically overloaded)
         if restriction_count > 12:  # More than 12 restrictions is excessive
             print(f"[WARNING] Teacher '{teacher_name}' has {restriction_count} restrictions - may cause scheduling issues")
@@ -1753,14 +1757,17 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                 f"Subjects: {', '.join(set(load['subjects']))}. "
                 f"Fix: Remove {deficit} hours of assignments OR reduce {deficit} restrictions."
             )
-        elif restriction_count > 15 and total_needed > total_available * 0.5:
-            # Teacher has excessive restrictions and is using >50% of available slots
-            pre_validation_errors.append(
-                f"• Teacher '{teacher_name}' has EXCESSIVE RESTRICTIONS: {restriction_count} slots restricted, "
-                f"needs {total_needed}h but only {total_available}h available. "
-                f"With other constraints (labs, breaks, combinations), scheduling may be impossible. "
-                f"Fix: Remove some restrictions for this teacher."
-            )
+        elif restriction_count > 10:
+            # Lower threshold - warn about any teacher with >10 restrictions
+            print(f"[POTENTIAL ISSUE] Teacher '{teacher_name}' has {restriction_count} restrictions (needs {total_needed}h / {total_available}h available)")
+            if restriction_count > 15:
+                # Add to errors if very high restriction count
+                pre_validation_errors.append(
+                    f"• Teacher '{teacher_name}' has EXCESSIVE RESTRICTIONS: {restriction_count} slots restricted. "
+                    f"Even though {total_available}h are available for {total_needed}h needed, "
+                    f"the specific restricted slots may conflict with other constraints (labs, breaks, room availability). "
+                    f"Fix: Remove some restrictions for this teacher or reassign their subjects."
+                )
     
     # If there are pre-validation errors, fail early with actionable message
     if pre_validation_errors:
