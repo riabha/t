@@ -83,3 +83,53 @@ def update_settings(data: GlobalConfigSchema, db: Session = Depends(get_db), use
     db.commit()
     db.refresh(config)
     return config
+
+
+# ── User Preferences ────────────────────────────────────────────
+class UserPreferencesSchema(BaseModel):
+    extra_classes: Optional[int] = 0
+    class_duration: Optional[int] = 60
+    start_time: Optional[str] = "08:30"
+    break_slot: Optional[int] = 2
+    break_duration: Optional[int] = 30
+    max_slots_per_day: Optional[int] = 8
+    max_slots_friday: Optional[int] = 4
+    semester_type: Optional[str] = "Fall"
+    friday_has_break: Optional[bool] = False
+    allow_friday_labs: Optional[bool] = False
+    prefer_early_dismissal: Optional[bool] = True
+    lab_is_last: Optional[bool] = True
+    sequential_mode: Optional[bool] = False
+
+    class Config:
+        from_attributes = True
+
+@router.get("/preferences", response_model=UserPreferencesSchema)
+def get_user_preferences(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Get current user's timetable generation preferences"""
+    from models import UserPreferences
+    
+    prefs = db.query(UserPreferences).filter(UserPreferences.user_id == user.id).first()
+    if not prefs:
+        # Return defaults
+        return UserPreferencesSchema()
+    return prefs
+
+@router.put("/preferences", response_model=UserPreferencesSchema)
+def save_user_preferences(data: UserPreferencesSchema, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Save current user's timetable generation preferences"""
+    from models import UserPreferences
+    
+    prefs = db.query(UserPreferences).filter(UserPreferences.user_id == user.id).first()
+    if not prefs:
+        prefs = UserPreferences(user_id=user.id)
+        db.add(prefs)
+    
+    # Update all fields
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(prefs, key, value)
+    
+    db.commit()
+    db.refresh(prefs)
+    return prefs

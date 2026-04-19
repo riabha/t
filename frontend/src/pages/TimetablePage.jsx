@@ -105,6 +105,7 @@ export default function TimetablePage() {
 
     useEffect(() => {
         loadList();
+        loadPreferences();
     }, []);
 
     const loadList = async () => {
@@ -129,6 +130,51 @@ export default function TimetablePage() {
             setSelectedDept(user.department_id.toString());
         } else if (deptsRes.data.length > 0) {
             setSelectedDept(deptsRes.data[0].id.toString());
+        }
+    };
+
+    const loadPreferences = async () => {
+        try {
+            const res = await api.get('/settings/preferences');
+            const prefs = res.data;
+            setExtraClasses(prefs.extra_classes);
+            setClassDuration(prefs.class_duration);
+            setStartTime(prefs.start_time);
+            setBreakSlot(prefs.break_slot);
+            setBreakDuration(prefs.break_duration);
+            setMaxSlotsPerDay(prefs.max_slots_per_day);
+            setMaxSlotsFriday(prefs.max_slots_friday);
+            setSemesterType(prefs.semester_type);
+            setFridayHasBreak(prefs.friday_has_break);
+            setAllowFridayLabs(prefs.allow_friday_labs);
+            setPreferEarlyDismissal(prefs.prefer_early_dismissal);
+            setLabIsLast(prefs.lab_is_last);
+            setSequentialMode(prefs.sequential_mode);
+        } catch (e) {
+            console.log('No saved preferences, using defaults');
+        }
+    };
+
+    const savePreferences = async () => {
+        try {
+            await api.put('/settings/preferences', {
+                extra_classes: parseInt(extraClasses),
+                class_duration: parseInt(classDuration),
+                start_time: startTime,
+                break_slot: parseInt(breakSlot),
+                break_duration: parseInt(breakDuration),
+                max_slots_per_day: parseInt(maxSlotsPerDay),
+                max_slots_friday: parseInt(maxSlotsFriday),
+                semester_type: semesterType,
+                friday_has_break: fridayHasBreak,
+                allow_friday_labs: allowFridayLabs,
+                prefer_early_dismissal: preferEarlyDismissal,
+                lab_is_last: labIsLast,
+                sequential_mode: sequentialMode
+            });
+            alert('Settings saved successfully!');
+        } catch (e) {
+            alert('Failed to save settings: ' + (e.response?.data?.detail || 'Unknown error'));
         }
     };
 
@@ -1085,6 +1131,19 @@ export default function TimetablePage() {
                                     className="w-4 h-4 text-primary-600 bg-slate-50 border-slate-300 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
                                 />
                                 <label htmlFor="labIsLast" className="text-xs font-bold text-slate-600 uppercase">Lab is Last (No theory after afternoon lab)</label>
+                            </div>
+
+                            {/* Save Settings Button */}
+                            <div className="pt-4 border-t border-slate-200 flex justify-end">
+                                <button
+                                    onClick={savePreferences}
+                                    className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors shadow-md flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                                    </svg>
+                                    Save Settings
+                                </button>
                             </div>
                         </div>
                     )}

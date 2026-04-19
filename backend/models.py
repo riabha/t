@@ -427,3 +427,28 @@ class MakeupTimetableSlot(Base):
     timetable = relationship("MakeupTimetable", back_populates="slots")
     makeup_class = relationship("MakeupClass")
     room = relationship("Room")
+
+
+# ── User Preferences ────────────────────────────────────────────
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    
+    # Timetable generation settings
+    extra_classes = Column(Integer, default=0)
+    class_duration = Column(Integer, default=60)
+    start_time = Column(String(10), default="08:30")
+    break_slot = Column(Integer, default=2)
+    break_duration = Column(Integer, default=30)
+    max_slots_per_day = Column(Integer, default=8)
+    max_slots_friday = Column(Integer, default=4)
+    semester_type = Column(String(20), default="Fall")
+    friday_has_break = Column(Boolean, default=False)
+    allow_friday_labs = Column(Boolean, default=False)
+    prefer_early_dismissal = Column(Boolean, default=True)
+    lab_is_last = Column(Boolean, default=True)
+    sequential_mode = Column(Boolean, default=False)
+    
+    user = relationship("User")
