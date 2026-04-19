@@ -201,7 +201,7 @@ export default function ManualTimetablePage() {
         }
         
         try {
-            await api.put(`/timetable/${activeTT}`, {
+            await api.patch(`/timetable/${activeTT}`, {
                 max_slots_per_day: maxSlotsPerDay,
                 max_slots_friday: maxSlotsFriday,
                 break_slot: breakSlot,
@@ -224,7 +224,7 @@ export default function ManualTimetablePage() {
         const newValue = !ttData.friday_has_break;
         
         try {
-            await api.put(`/timetable/${activeTT}`, {
+            await api.patch(`/timetable/${activeTT}`, {
                 friday_has_break: newValue
             });
             

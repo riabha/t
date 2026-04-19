@@ -313,6 +313,22 @@ def update_timetable(tt_id: int, req: TimetableUpdate, db: Session = Depends(get
         tt.name = req.name
     if req.status is not None:
         tt.status = req.status
+    if req.max_slots_per_day is not None:
+        tt.max_slots_per_day = req.max_slots_per_day
+    if req.max_slots_friday is not None:
+        tt.max_slots_friday = req.max_slots_friday
+    if req.break_slot is not None:
+        tt.break_slot = req.break_slot
+    if req.start_time is not None:
+        tt.start_time = req.start_time
+    if req.break_start_time is not None:
+        tt.break_start_time = req.break_start_time
+    if req.break_end_time is not None:
+        tt.break_end_time = req.break_end_time
+    if req.class_duration is not None:
+        tt.class_duration = req.class_duration
+    if req.friday_has_break is not None:
+        tt.friday_has_break = req.friday_has_break
         
     db.commit()
     db.refresh(tt)

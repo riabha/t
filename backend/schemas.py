@@ -332,6 +332,14 @@ class TimetableOut(BaseModel):
 class TimetableUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
+    max_slots_per_day: Optional[int] = None
+    max_slots_friday: Optional[int] = None
+    break_slot: Optional[int] = None
+    start_time: Optional[str] = None
+    break_start_time: Optional[str] = None
+    break_end_time: Optional[str] = None
+    class_duration: Optional[int] = None
+    friday_has_break: Optional[bool] = None
 
 class GenerateRequest(BaseModel):
     name: str = "Auto Generated"
