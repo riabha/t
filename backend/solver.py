@@ -951,9 +951,13 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
                         continue
                     lab_v = x_lab[ti, d, ls]
                     lab_end = ls + 2  # Last slot occupied by the lab (ls, ls+1, ls+2)
-                    # Block theory at any slot after the lab ends for all shared sections
+                    # Block theory ONLY for the SAME sections in this task (not all shared sections)
+                    # This prevents cascade blocking across different sections
                     for sid in task["section_ids"]:
                         for t2, task2 in enumerate(tasks):
+                            if t2 == ti:
+                                continue
+                            # Only apply to tasks that share THIS EXACT section
                             if sid not in task2["section_ids"]:
                                 continue
                             if task2["theory_credits"] <= 0:
