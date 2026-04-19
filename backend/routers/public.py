@@ -163,7 +163,9 @@ def public_teacher_schedule(tt_id: int, teacher_id: int, db: Session = Depends(g
         "slots": [_slot_dict(s, section_map.get(s.section_id)) for s in slots],
         "break_slot": tt.break_slot,
         "start_time": tt.start_time,
-        "class_duration": tt.class_duration
+        "class_duration": tt.class_duration,
+        "max_slots_per_day": tt.max_slots_per_day,
+        "max_slots_friday": tt.max_slots_friday
     }
 
 

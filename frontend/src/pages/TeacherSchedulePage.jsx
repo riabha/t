@@ -61,7 +61,16 @@ export default function TeacherSchedulePage() {
     };
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const slots = [0, 1, 2, 3, 4, 5, 6, 7];
+
+    // Use timetable settings if available, otherwise derive from actual slots
+    const maxSlotsPerDay = schedule?.max_slots_per_day || 
+        (schedule?.slots ? Math.max(...schedule.slots.map(s => s.slot_index + 1), 1) : 8);
+    const maxSlotsFriday = schedule?.max_slots_friday || maxSlotsPerDay;
+
+    const getSlotsForDay = (dayIdx) => {
+        const count = dayIdx === 4 ? maxSlotsFriday : maxSlotsPerDay;
+        return Array.from({ length: count }, (_, i) => i);
+    };
 
     const getSlot = (day, slotIndex) => {
         if (!schedule || !schedule.slots) return null;
@@ -163,7 +172,7 @@ export default function TeacherSchedulePage() {
                                         <thead>
                                             <tr className="bg-slate-100">
                                                 <th className="border border-slate-200 p-3 text-left text-xs font-bold text-slate-700 w-24">Day</th>
-                                                {slots.map(s => (
+                                                {getSlotsForDay(0).map(s => (
                                                     <th key={s} className="border border-slate-200 p-3 text-center text-xs font-bold text-slate-700 min-w-[120px]">
                                                         Slot {s + 1}
                                                     </th>
@@ -176,7 +185,7 @@ export default function TeacherSchedulePage() {
                                                     <td className="border border-slate-200 p-3 bg-slate-50 font-bold text-sm text-slate-700">
                                                         {day}
                                                     </td>
-                                                    {slots.map(slotIdx => {
+                                                    {getSlotsForDay(dayIdx).map(slotIdx => {
                                                         const slot = getSlot(dayIdx, slotIdx);
                                                         if (!slot || slot.is_break) {
                                                             return (
