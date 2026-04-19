@@ -612,10 +612,17 @@ def check_clash(data: dict, db: Session = Depends(get_db)):
     is_lab = data.get('is_lab', False)
     lab_engineer_id = data.get('lab_engineer_id')
     
-    # Get all latest (non-archived) timetables
+    # Get all latest (non-archived) timetables + always include current timetable
     latest_timetables = db.query(Timetable).filter(
-        Timetable.status.in_(['generated', 'active'])
+        Timetable.status.in_(['generated', 'active', 'draft'])
     ).all()
+    
+    # Make sure current timetable is always included
+    tt_ids = {tt.id for tt in latest_timetables}
+    if timetable_id and timetable_id not in tt_ids:
+        current_tt = db.query(Timetable).filter(Timetable.id == timetable_id).first()
+        if current_tt:
+            latest_timetables.append(current_tt)
     
     clashes = []
     
