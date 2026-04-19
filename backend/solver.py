@@ -1708,6 +1708,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
     # IMPORTANT: Labs are taught by lab engineers, NOT by theory teachers.
     # Only count theory hours for the teacher, and lab hours for the lab engineer separately.
     # CRITICAL: Sections in the same assignment are scheduled TOGETHER, so count hours only ONCE per assignment
+    print(f"[PRE-VALIDATION] Starting teacher workload analysis for {len(tasks)} tasks...")
     teacher_load = defaultdict(lambda: {"theory": 0, "lab_blocks": 0, "sections": set(), "subjects": []})
     for ti, task in enumerate(tasks):
         tid = task.get("teacher_id")
@@ -1727,6 +1728,7 @@ def generate_timetable(db: Session, name: str = "Auto Generated",
             teacher_load[le_id]["lab_blocks"] += task["lab_credits"]
             teacher_load[le_id]["subjects"].append(task["subject"].code + " (Lab)")
     
+    print(f"[PRE-VALIDATION] Analyzing {len(teacher_load)} teachers...")
     for tid, load in teacher_load.items():
         total_needed = load["theory"] + load["lab_blocks"] * 3
         # Count actual free SCHEDULABLE slots (not just total - restrictions)
