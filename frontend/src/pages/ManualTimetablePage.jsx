@@ -36,7 +36,7 @@ export default function ManualTimetablePage() {
     }, []);
 
     const loadData = async () => {
-        const [ttRes, secRes, bRes, deptsRes, sessRes, subjRes, teachRes, roomRes] = await Promise.all([
+        const [ttRes, secRes, bRes, deptsRes, sessRes, subjRes, teachRes, roomRes, configRes] = await Promise.all([
             api.get('/timetable/list'),
             api.get('/departments/sections'),
             api.get('/departments/batches'),
@@ -44,7 +44,8 @@ export default function ManualTimetablePage() {
             api.get('/assignments/sessions'),
             api.get('/subjects/'),
             api.get('/teachers/'),
-            api.get('/rooms/')
+            api.get('/rooms/'),
+            api.get('/settings/config')
         ]);
         
         console.log('=== INITIAL DATA LOAD ===');
@@ -69,6 +70,18 @@ export default function ManualTimetablePage() {
         setSubjects(subjRes.data);
         setTeachers(teachRes.data);
         setRooms(roomRes.data);
+
+        // Load global settings
+        if (configRes.data) {
+            const config = configRes.data;
+            setMaxSlotsPerDay(config.max_slots_per_day || 10);
+            setMaxSlotsFriday(config.max_slots_friday || 6);
+            setBreakSlot(config.break_slot || 2);
+            setStartTime(config.start_time || '08:00');
+            setBreakStartTime(config.break_start_time || '10:30');
+            setBreakEndTime(config.break_end_time || '11:00');
+            setClassDuration(config.class_duration || 60);
+        }
 
         if (user?.department_id) {
             setSelectedDept(user.department_id.toString());
