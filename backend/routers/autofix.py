@@ -43,24 +43,22 @@ def fix_lab_room_conflicts(
         if asgn.lab_room_id:
             room_usage[asgn.lab_room_id].append(asgn)
     
-    # Find over-booked rooms (more than 3 labs = conflict)
+    # Find over-booked rooms (more than 3 labs = conflict across all batches)
+    # Each room can only host 3 labs per day (3 lab slots available)
     over_booked = {room_id: asgns for room_id, asgns in room_usage.items() if len(asgns) > 3}
     
     if not over_booked:
         return {"success": True, "message": "No lab room conflicts detected", "changes": 0}
     
-    # Get available generic lab rooms
-    generic_labs = db.query(Room).filter(
-        Room.is_lab == True,
-        Room.name.like("Lab-%")
-    ).order_by(Room.name).all()
+    # Get ALL available lab rooms for redistribution
+    all_lab_rooms = db.query(Room).filter(Room.is_lab == True).order_by(Room.name).all()
+    generic_labs = [r for r in all_lab_rooms if r.name.startswith("Lab-")]
     
     if not generic_labs:
         return {"success": False, "message": "No generic lab rooms (Lab-01, Lab-02, etc.) available for reassignment"}
     
-    # Reassign excess labs
+    # Reassign excess labs - distribute evenly across available rooms
     changes = []
-    generic_lab_index = 0
     
     for room_id, assignments in over_booked.items():
         room = db.query(Room).filter(Room.id == room_id).first()
@@ -69,18 +67,21 @@ def fix_lab_room_conflicts(
         # Keep first 3 labs in original room, reassign the rest
         excess_labs = assignments[3:]
         
-        for asgn in excess_labs:
-            if generic_lab_index >= len(generic_labs):
-                # Wrap around if we run out of generic labs
-                generic_lab_index = 0
+        for i, asgn in enumerate(excess_labs):
+            # Find a room that has fewer than 3 labs assigned
+            target_room = None
+            for lab_room in generic_labs:
+                current_count = sum(1 for a in lab_assignments if a.lab_room_id == lab_room.id)
+                if current_count < 3 and lab_room.id != room_id:
+                    target_room = lab_room
+                    break
             
-            new_room = generic_labs[generic_lab_index]
-            old_room_name = room_name
+            if not target_room:
+                # Use round-robin if no room has space
+                target_room = generic_labs[i % len(generic_labs)]
             
-            # Update assignment
-            asgn.lab_room_id = new_room.id
+            asgn.lab_room_id = target_room.id
             
-            # Get subject and batch info for logging
             subject = db.query(Subject).filter(Subject.id == asgn.subject_id).first()
             batch = db.query(Batch).filter(Batch.id == asgn.batch_id).first()
             dept = db.query(Department).filter(Department.id == batch.department_id).first() if batch else None
@@ -91,11 +92,9 @@ def fix_lab_room_conflicts(
             changes.append({
                 "batch": batch_name,
                 "subject": subject_name,
-                "from_room": old_room_name,
-                "to_room": new_room.name
+                "from_room": room_name,
+                "to_room": target_room.name
             })
-            
-            generic_lab_index += 1
     
     # Commit changes
     db.commit()
